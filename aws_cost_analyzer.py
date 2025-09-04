@@ -51,6 +51,50 @@ def check_and_install_dependencies():
 # 检查依赖
 check_and_install_dependencies()
 
+def format_table(df, title=""):
+    """
+    自定义表格格式化函数，确保完美对齐
+    """
+    if df is None or df.empty:
+        return ""
+    
+    # 重置索引，将索引作为第一列
+    df_display = df.reset_index()
+    
+    # 计算每列的最大宽度
+    col_widths = {}
+    for col in df_display.columns:
+        # 列名宽度
+        header_width = len(str(col))
+        # 数据宽度
+        data_width = df_display[col].astype(str).str.len().max()
+        col_widths[col] = max(header_width, data_width) + 2  # 额外2个字符用于间距
+    
+    # 生成表格
+    result = []
+    
+    # 表头
+    header_line = "|"
+    separator_line = "|"
+    for col in df_display.columns:
+        header_line += f" {str(col):<{col_widths[col]-1}}|"
+        separator_line += "-" * col_widths[col] + "|"
+    
+    result.append(header_line)
+    result.append(separator_line)
+    
+    # 数据行
+    for _, row in df_display.iterrows():
+        data_line = "|"
+        for col in df_display.columns:
+            if col in ['总费用', '平均费用', '记录数']:  # 数字列右对齐
+                data_line += f" {str(row[col]):>{col_widths[col]-1}}|"
+            else:  # 文本列左对齐
+                data_line += f" {str(row[col]):<{col_widths[col]-1}}|"
+        result.append(data_line)
+    
+    return "\n".join(result)
+
 import boto3
 import pandas as pd
 import numpy as np
@@ -66,7 +110,7 @@ import os
 import sys
 import getpass
 import argparse
-from tabulate import tabulate
+# from tabulate import tabulate  # 不再使用tabulate，改用自定义格式化
 from colorama import init, Fore, Style
 import warnings
 
@@ -645,13 +689,13 @@ class AWSCostAnalyzer:
         service_costs = self.analyze_costs_by_service(df)
         if service_costs is not None:
             print(f"\n{Fore.CYAN}按服务分析 (前5名):{Style.RESET_ALL}")
-            print(tabulate(service_costs.head(), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
+            print(format_table(service_costs.head()))
         
         # 按区域分析
         region_costs = self.analyze_costs_by_region(df)
         if region_costs is not None:
             print(f"\n{Fore.CYAN}按区域分析:{Style.RESET_ALL}")
-            print(tabulate(region_costs, headers='keys', tablefmt='grid', stralign='left', numalign='right'))
+            print(format_table(region_costs))
 
 
 def print_banner():
@@ -818,7 +862,7 @@ def service_analysis(analyzer):
     service_costs = analyzer.analyze_costs_by_service(df)
     if service_costs is not None:
         print(f"\n{Fore.CYAN}按服务分析 (前10名):{Style.RESET_ALL}")
-        print(tabulate(service_costs.head(10), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
+        print(format_table(service_costs.head(10)))
         
         # 生成服务费用图表
         analyzer.plot_costs_by_service(df, 'service_analysis.png')
@@ -841,7 +885,7 @@ def region_analysis(analyzer):
     region_costs = analyzer.analyze_costs_by_region(df)
     if region_costs is not None:
         print(f"\n{Fore.CYAN}按区域分析:{Style.RESET_ALL}")
-        print(tabulate(region_costs, headers='keys', tablefmt='grid', stralign='left', numalign='right'))
+        print(format_table(region_costs))
         
         # 生成区域费用图表
         from create_beautiful_charts import create_beautiful_region_chart
@@ -865,7 +909,7 @@ def trend_analysis(analyzer):
     time_costs = analyzer.analyze_costs_by_time(df)
     if time_costs is not None:
         print(f"\n{Fore.CYAN}费用趋势分析:{Style.RESET_ALL}")
-        print(tabulate(time_costs.tail(10), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
+        print(format_table(time_costs.tail(10)))
         
         # 生成趋势图表
         analyzer.plot_cost_trend(df, 'trend_analysis.png')
@@ -1213,7 +1257,7 @@ def service_analysis_cli(analyzer, args):
     service_costs = analyzer.analyze_costs_by_service(df)
     if service_costs is not None:
         print(f"\n{Fore.CYAN}按服务分析 (前10名):{Style.RESET_ALL}")
-        print(tabulate(service_costs.head(10), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
+        print(format_table(service_costs.head(10)))
         
         if args.format in ['png', 'all']:
             output_file = os.path.join(args.output, 'service_analysis.png')
@@ -1237,7 +1281,7 @@ def region_analysis_cli(analyzer, args):
     region_costs = analyzer.analyze_costs_by_region(df)
     if region_costs is not None:
         print(f"\n{Fore.CYAN}按区域分析:{Style.RESET_ALL}")
-        print(tabulate(region_costs, headers='keys', tablefmt='grid', stralign='left', numalign='right'))
+        print(format_table(region_costs))
         
         if args.format in ['png', 'all']:
             try:
@@ -1265,7 +1309,7 @@ def trend_analysis_cli(analyzer, args):
     time_costs = analyzer.analyze_costs_by_time(df)
     if time_costs is not None:
         print(f"\n{Fore.CYAN}费用趋势分析:{Style.RESET_ALL}")
-        print(tabulate(time_costs.tail(10), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
+        print(format_table(time_costs.tail(10)))
         
         if args.format in ['png', 'all']:
             output_file = os.path.join(args.output, 'trend_analysis.png')
