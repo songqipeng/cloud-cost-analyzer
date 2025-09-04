@@ -14,7 +14,7 @@ def check_and_install_dependencies():
         'matplotlib': 'matplotlib>=3.8.0',
         'seaborn': 'seaborn>=0.13.0',
         'plotly': 'plotly>=5.17.0',
-        'python-dateutil': 'python-dateutil>=2.8.2',
+        'dateutil': 'python-dateutil>=2.8.2',  # 导入名是dateutil，包名是python-dateutil
         'tabulate': 'tabulate>=0.9.0',
         'colorama': 'colorama>=0.4.6'
     }
