@@ -126,21 +126,64 @@ aws_cost_env\Scripts\activate     # Windows
 ## 📊 输出格式
 
 ### 文本报告 (TXT)
-- 费用摘要
-- 按服务分析
+- 费用摘要统计
+- 按服务分析（前5名服务）
 - 按区域分析
-- 费用趋势
+- 费用趋势数据
 
 ### HTML仪表板
-- 交互式图表
-- 响应式设计
-- 美观的界面
+程序会生成一个美观的交互式HTML仪表板，包含：
+
+**🎨 设计特点：**
+- 现代化的响应式设计
+- 深色主题配色方案
+- 渐变背景和卡片式布局
+- 专业的图表样式
+
+**📈 内容包含：**
+- 费用总览卡片（总费用、平均费用、最高/最低费用）
+- 服务费用分布图（水平条形图，避免标签重叠）
+- 区域费用分布图（水平条形图）
+- 费用趋势图（折线图显示时间变化）
+- 综合统计表格
+
+**💡 使用方法：**
+```bash
+# 生成HTML仪表板
+./aws_cost_analyzer.py detailed --format html
+
+# 输出文件：aws_cost_dashboard.html
+# 在浏览器中打开即可查看交互式仪表板
+```
 
 ### PNG图表
-- 服务费用分布图
-- 区域费用分布图
-- 费用趋势图
-- 综合仪表板
+程序会生成专业的PNG图表文件，包含：
+
+**🎯 图表类型：**
+- 服务费用分布图（水平条形图）
+- 区域费用分布图（水平条形图）
+- 费用趋势图（折线图）
+- 综合仪表板（多图表组合）
+
+**🎨 设计特点：**
+- 使用英文标签避免字体渲染问题
+- 现代化的配色方案
+- 清晰的数值标签
+- 专业的图表样式
+
+**💡 使用方法：**
+```bash
+# 生成PNG图表
+./aws_cost_analyzer.py service --format png
+./aws_cost_analyzer.py region --format png
+./aws_cost_analyzer.py trend --format png
+
+# 输出文件示例：
+# - service_analysis.png
+# - region_analysis.png
+# - trend_analysis.png
+# - comprehensive_dashboard.png
+```
 
 ## 🛠️ 技术栈
 
@@ -157,10 +200,28 @@ aws_cost_env\Scripts\activate     # Windows
 ```
 aws-cost-analyzer/
 ├── aws_cost_analyzer.py          # 主程序文件（包含自动依赖安装）
-├── create_beautiful_charts.py    # 美观图表生成器
-├── create_beautiful_dashboard.py # 美观HTML仪表板
+├── create_beautiful_charts.py    # 美观PNG图表生成器
+├── create_beautiful_dashboard.py # 美观HTML仪表板生成器
 └── README.md                    # 项目说明
 ```
+
+### 📋 文件说明
+
+- **`aws_cost_analyzer.py`** - 主程序文件，包含所有核心功能：
+  - AWS费用数据获取和分析
+  - 命令行参数解析
+  - 自动依赖包安装
+  - 调用图表和仪表板生成器
+
+- **`create_beautiful_charts.py`** - PNG图表生成器：
+  - 生成专业的PNG格式图表
+  - 支持服务、区域、趋势等多种图表类型
+  - 使用现代化设计风格和英文标签
+
+- **`create_beautiful_dashboard.py`** - HTML仪表板生成器：
+  - 生成交互式HTML仪表板
+  - 响应式设计，支持各种设备
+  - 深色主题，现代化UI设计
 
 ## ⚠️ 注意事项
 
