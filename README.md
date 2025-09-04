@@ -52,7 +52,7 @@ python3 aws_cost_analyzer.py
 
 ### 基本用法
 ```bash
-aws_cost_analyzer [命令] [选项]
+python3 aws_cost_analyzer.py [命令] [选项]
 ```
 
 ### 可用命令
@@ -70,22 +70,22 @@ aws_cost_analyzer [命令] [选项]
 
 ```bash
 # 查看使用指南
-aws_cost_analyzer
+python3 aws_cost_analyzer.py
 
 # 快速分析
-aws_cost_analyzer quick
+python3 aws_cost_analyzer.py quick
 
 # 自定义时间范围分析
-aws_cost_analyzer custom --start 2024-01-01 --end 2024-12-31
+python3 aws_cost_analyzer.py custom --start 2024-01-01 --end 2024-12-31
 
 # 生成详细报告
-aws_cost_analyzer detailed --output ./reports
+python3 aws_cost_analyzer.py detailed --output ./reports
 
 # 按服务分析并生成PNG图表
-aws_cost_analyzer service --format png
+python3 aws_cost_analyzer.py service --format png
 
 # 配置检查
-aws_cost_analyzer config
+python3 aws_cost_analyzer.py config
 ```
 
 ### 选项说明
@@ -157,11 +157,9 @@ aws_cost_analyzer config
 
 ```
 aws-cost-analyzer/
-├── aws_cost_analyzer.py          # 主程序文件
+├── aws_cost_analyzer.py          # 主程序文件（包含自动依赖安装）
 ├── create_beautiful_charts.py    # 美观图表生成器
 ├── create_beautiful_dashboard.py # 美观HTML仪表板
-├── requirements.txt              # 依赖包列表
-├── .gitignore                   # Git忽略文件
 └── README.md                    # 项目说明
 ```
 
