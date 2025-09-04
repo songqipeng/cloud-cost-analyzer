@@ -645,13 +645,13 @@ class AWSCostAnalyzer:
         service_costs = self.analyze_costs_by_service(df)
         if service_costs is not None:
             print(f"\n{Fore.CYAN}按服务分析 (前5名):{Style.RESET_ALL}")
-            print(tabulate(service_costs.head(), headers='keys', tablefmt='simple', stralign='right', numalign='right'))
+            print(tabulate(service_costs.head(), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
         
         # 按区域分析
         region_costs = self.analyze_costs_by_region(df)
         if region_costs is not None:
             print(f"\n{Fore.CYAN}按区域分析:{Style.RESET_ALL}")
-            print(tabulate(region_costs, headers='keys', tablefmt='simple', stralign='right', numalign='right'))
+            print(tabulate(region_costs, headers='keys', tablefmt='grid', stralign='left', numalign='right'))
 
 
 def print_banner():
@@ -818,7 +818,7 @@ def service_analysis(analyzer):
     service_costs = analyzer.analyze_costs_by_service(df)
     if service_costs is not None:
         print(f"\n{Fore.CYAN}按服务分析 (前10名):{Style.RESET_ALL}")
-        print(tabulate(service_costs.head(10), headers='keys', tablefmt='simple', stralign='right', numalign='right'))
+        print(tabulate(service_costs.head(10), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
         
         # 生成服务费用图表
         analyzer.plot_costs_by_service(df, 'service_analysis.png')
@@ -841,7 +841,7 @@ def region_analysis(analyzer):
     region_costs = analyzer.analyze_costs_by_region(df)
     if region_costs is not None:
         print(f"\n{Fore.CYAN}按区域分析:{Style.RESET_ALL}")
-        print(tabulate(region_costs, headers='keys', tablefmt='simple', stralign='right', numalign='right'))
+        print(tabulate(region_costs, headers='keys', tablefmt='grid', stralign='left', numalign='right'))
         
         # 生成区域费用图表
         from create_beautiful_charts import create_beautiful_region_chart
@@ -865,7 +865,7 @@ def trend_analysis(analyzer):
     time_costs = analyzer.analyze_costs_by_time(df)
     if time_costs is not None:
         print(f"\n{Fore.CYAN}费用趋势分析:{Style.RESET_ALL}")
-        print(tabulate(time_costs.tail(10), headers='keys', tablefmt='simple', stralign='right', numalign='right'))
+        print(tabulate(time_costs.tail(10), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
         
         # 生成趋势图表
         analyzer.plot_cost_trend(df, 'trend_analysis.png')
@@ -1213,7 +1213,7 @@ def service_analysis_cli(analyzer, args):
     service_costs = analyzer.analyze_costs_by_service(df)
     if service_costs is not None:
         print(f"\n{Fore.CYAN}按服务分析 (前10名):{Style.RESET_ALL}")
-        print(tabulate(service_costs.head(10), headers='keys', tablefmt='simple', stralign='right', numalign='right'))
+        print(tabulate(service_costs.head(10), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
         
         if args.format in ['png', 'all']:
             output_file = os.path.join(args.output, 'service_analysis.png')
@@ -1237,7 +1237,7 @@ def region_analysis_cli(analyzer, args):
     region_costs = analyzer.analyze_costs_by_region(df)
     if region_costs is not None:
         print(f"\n{Fore.CYAN}按区域分析:{Style.RESET_ALL}")
-        print(tabulate(region_costs, headers='keys', tablefmt='simple', stralign='right', numalign='right'))
+        print(tabulate(region_costs, headers='keys', tablefmt='grid', stralign='left', numalign='right'))
         
         if args.format in ['png', 'all']:
             try:
@@ -1265,7 +1265,7 @@ def trend_analysis_cli(analyzer, args):
     time_costs = analyzer.analyze_costs_by_time(df)
     if time_costs is not None:
         print(f"\n{Fore.CYAN}费用趋势分析:{Style.RESET_ALL}")
-        print(tabulate(time_costs.tail(10), headers='keys', tablefmt='simple', stralign='right', numalign='right'))
+        print(tabulate(time_costs.tail(10), headers='keys', tablefmt='grid', stralign='left', numalign='right'))
         
         if args.format in ['png', 'all']:
             output_file = os.path.join(args.output, 'trend_analysis.png')
