@@ -23,11 +23,10 @@ cd aws-cost-analyzer
 
 ### 2. 运行程序（自动安装依赖）
 ```bash
-# 直接运行，程序会自动检测并安装缺少的依赖包
-python3 aws_cost_analyzer.py
-
-# 或者设置为可执行文件后直接运行
+# 设置为可执行文件后直接运行
 chmod +x aws_cost_analyzer.py
+
+# 直接运行，程序会自动检测并安装缺少的依赖包
 ./aws_cost_analyzer.py
 ```
 
@@ -45,14 +44,14 @@ source aws_cost_env/bin/activate  # Linux/Mac
 aws_cost_env\Scripts\activate     # Windows
 
 # 运行程序
-python3 aws_cost_analyzer.py
+./aws_cost_analyzer.py
 ```
 
 ## 🔧 使用方法
 
 ### 基本用法
 ```bash
-python3 aws_cost_analyzer.py [命令] [选项]
+./aws_cost_analyzer.py [命令] [选项]
 ```
 
 ### 可用命令
@@ -70,22 +69,22 @@ python3 aws_cost_analyzer.py [命令] [选项]
 
 ```bash
 # 查看使用指南
-python3 aws_cost_analyzer.py
+./aws_cost_analyzer.py
 
 # 快速分析
-python3 aws_cost_analyzer.py quick
+./aws_cost_analyzer.py quick
 
 # 自定义时间范围分析
-python3 aws_cost_analyzer.py custom --start 2024-01-01 --end 2024-12-31
+./aws_cost_analyzer.py custom --start 2024-01-01 --end 2024-12-31
 
 # 生成详细报告
-python3 aws_cost_analyzer.py detailed --output ./reports
+./aws_cost_analyzer.py detailed --output ./reports
 
 # 按服务分析并生成PNG图表
-python3 aws_cost_analyzer.py service --format png
+./aws_cost_analyzer.py service --format png
 
 # 配置检查
-python3 aws_cost_analyzer.py config
+./aws_cost_analyzer.py config
 ```
 
 ### 选项说明
