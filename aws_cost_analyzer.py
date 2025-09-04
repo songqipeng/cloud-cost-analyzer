@@ -330,6 +330,10 @@ class AWSCostAnalyzer:
         
         service_costs = df.groupby('Service')['Cost'].agg(['sum', 'mean', 'count']).round(4)
         service_costs.columns = ['总费用', '平均费用', '记录数']
+        
+        # 过滤掉费用小于$0.01的服务
+        service_costs = service_costs[service_costs['总费用'] >= 0.01]
+        
         service_costs = service_costs.sort_values('总费用', ascending=False)
         
         return service_costs
@@ -349,6 +353,11 @@ class AWSCostAnalyzer:
         
         region_costs = df.groupby('Region')['Cost'].agg(['sum', 'mean', 'count']).round(4)
         region_costs.columns = ['总费用', '平均费用', '记录数']
+        
+        # 过滤掉费用小于$0.01的区域和无效区域
+        region_costs = region_costs[region_costs['总费用'] >= 0.01]
+        region_costs = region_costs[region_costs.index != 'NoRegion']
+        
         region_costs = region_costs.sort_values('总费用', ascending=False)
         
         return region_costs
@@ -694,8 +703,8 @@ class AWSCostAnalyzer:
         # 按服务分析
         service_costs = self.analyze_costs_by_service(df)
         if service_costs is not None:
-            print(f"\n{Fore.CYAN}按服务分析 (前5名):{Style.RESET_ALL}")
-            print(format_table(service_costs.head()))
+            print(f"\n{Fore.CYAN}按服务分析:{Style.RESET_ALL}")
+            print(format_table(service_costs))
         
         # 按区域分析
         region_costs = self.analyze_costs_by_region(df)
@@ -715,7 +724,7 @@ def print_banner():
 def print_menu():
     """打印主菜单"""
     print("\n📋 请选择分析选项:")
-    print("1. 🕐 快速分析 (过去3个月)")
+    print("1. 🕐 快速分析 (过去1年)")
     print("2. 📅 自定义时间范围分析")
     print("3. 📊 生成详细报告和图表")
     print("4. 🔍 按服务分析费用")
@@ -740,11 +749,11 @@ def get_user_choice():
             sys.exit(0)
 
 def quick_analysis(analyzer):
-    """快速分析过去3个月的费用"""
+    """快速分析过去1年的费用"""
     print("\n🕐 正在执行快速分析...")
     
-    # 获取过去3个月的数据
-    start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+    # 获取过去1年的数据
+    start_date = (datetime.now() - relativedelta(years=1)).strftime('%Y-%m-%d')
     end_date = datetime.now().strftime('%Y-%m-%d')
     
     cost_data = analyzer.get_cost_data(start_date, end_date, 'DAILY')
@@ -867,8 +876,8 @@ def service_analysis(analyzer):
     
     service_costs = analyzer.analyze_costs_by_service(df)
     if service_costs is not None:
-        print(f"\n{Fore.CYAN}按服务分析 (前10名):{Style.RESET_ALL}")
-        print(format_table(service_costs.head(10)))
+        print(f"\n{Fore.CYAN}按服务分析:{Style.RESET_ALL}")
+        print(format_table(service_costs))
         
         # 生成服务费用图表
         analyzer.plot_costs_by_service(df, 'service_analysis.png')
@@ -1024,7 +1033,7 @@ def print_usage_guide():
     print("  aws_cost_analyzer [命令] [选项]")
     print()
     print("🔧 可用命令:")
-    print("  quick         快速分析过去3个月的费用")
+    print("  quick         快速分析过去1年的费用")
     print("  custom        自定义时间范围分析")
     print("  detailed      生成详细报告和图表")
     print("  service       按服务分析费用")
@@ -1150,9 +1159,9 @@ def main():
 
 def quick_analysis_cli(analyzer, args):
     """命令行快速分析"""
-    print(f"{Fore.CYAN}🕐 快速分析过去3个月的费用...{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}🕐 快速分析过去1年的费用...{Style.RESET_ALL}")
     
-    start_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+    start_date = (datetime.now() - relativedelta(years=1)).strftime('%Y-%m-%d')
     end_date = datetime.now().strftime('%Y-%m-%d')
     
     cost_data = analyzer.get_cost_data(start_date, end_date, 'DAILY')
@@ -1262,8 +1271,8 @@ def service_analysis_cli(analyzer, args):
     
     service_costs = analyzer.analyze_costs_by_service(df)
     if service_costs is not None:
-        print(f"\n{Fore.CYAN}按服务分析 (前10名):{Style.RESET_ALL}")
-        print(format_table(service_costs.head(10)))
+        print(f"\n{Fore.CYAN}按服务分析:{Style.RESET_ALL}")
+        print(format_table(service_costs))
         
         if args.format in ['png', 'all']:
             output_file = os.path.join(args.output, 'service_analysis.png')
