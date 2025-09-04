@@ -38,6 +38,15 @@ pip install -r requirements.txt
 sudo cp aws_cost_analyzer.py /usr/local/bin/aws_cost_analyzer
 ```
 
+### 5. 运行程序
+```bash
+# 激活虚拟环境
+source aws_cost_env/bin/activate
+
+# 运行程序
+./aws_cost_analyzer
+```
+
 ## 🔧 使用方法
 
 ### 基本用法
