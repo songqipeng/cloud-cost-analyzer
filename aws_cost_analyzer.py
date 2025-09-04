@@ -80,6 +80,40 @@ def format_table(df, title=""):
     console.print(table)
     return ""  # 返回空字符串，避免打印None
 
+def print_cost_summary(df):
+    """
+    使用Rich库创建美观的费用摘要
+    """
+    if df is None or df.empty:
+        return
+    
+    # 计算统计数据
+    total_cost = df['Cost'].sum()
+    avg_daily_cost = df.groupby('Date')['Cost'].sum().mean()
+    max_daily_cost = df.groupby('Date')['Cost'].sum().max()
+    min_daily_cost = df.groupby('Date')['Cost'].sum().min()
+    
+    # 创建控制台
+    console = Console()
+    
+    # 创建费用摘要面板
+    summary_text = f"""
+[bold green]总费用:[/bold green] [bold cyan]${total_cost:.2f}[/bold cyan]
+[bold yellow]平均每日费用:[/bold yellow] [bold cyan]${avg_daily_cost:.2f}[/bold cyan]
+[bold red]最高单日费用:[/bold red] [bold cyan]${max_daily_cost:.2f}[/bold cyan]
+[bold green]最低单日费用:[/bold green] [bold cyan]${min_daily_cost:.2f}[/bold cyan]
+    """.strip()
+    
+    # 创建面板
+    panel = Panel(
+        summary_text,
+        title="[bold magenta]AWS费用摘要[/bold magenta]",
+        border_style="bright_blue",
+        padding=(1, 2)
+    )
+    
+    console.print(panel)
+
 import boto3
 import pandas as pd
 import numpy as np
@@ -97,6 +131,9 @@ import getpass
 import argparse
 from rich.console import Console
 from rich.table import Table
+from rich.panel import Panel
+from rich.columns import Columns
+from rich.text import Text
 from colorama import init, Fore, Style
 import warnings
 
@@ -656,20 +693,8 @@ class AWSCostAnalyzer:
             print(f"{Fore.RED}没有数据可显示{Style.RESET_ALL}")
             return
         
-        print(f"\n{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}AWS费用摘要{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}{'='*60}{Style.RESET_ALL}")
-        
-        # 基本统计
-        total_cost = df['Cost'].sum()
-        avg_daily_cost = df.groupby('Date')['Cost'].sum().mean()
-        max_daily_cost = df.groupby('Date')['Cost'].sum().max()
-        min_daily_cost = df.groupby('Date')['Cost'].sum().min()
-        
-        print(f"总费用: {Fore.GREEN}${total_cost:.2f}{Style.RESET_ALL}")
-        print(f"平均每日费用: {Fore.YELLOW}${avg_daily_cost:.2f}{Style.RESET_ALL}")
-        print(f"最高单日费用: {Fore.RED}${max_daily_cost:.2f}{Style.RESET_ALL}")
-        print(f"最低单日费用: {Fore.GREEN}${min_daily_cost:.2f}{Style.RESET_ALL}")
+        # 使用Rich库打印美观的费用摘要
+        print_cost_summary(df)
         
         # 按服务分析
         service_costs = self.analyze_costs_by_service(df)
