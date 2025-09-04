@@ -5,6 +5,52 @@ AWS费用分析器
 用于分析AWS云服务的费用情况，包括费用趋势、服务分布、区域分析等
 """
 
+# 自动依赖检查和安装
+def check_and_install_dependencies():
+    """检查并自动安装所需的依赖包"""
+    required_packages = {
+        'boto3': 'boto3>=1.34.0',
+        'pandas': 'pandas>=2.2.0',
+        'matplotlib': 'matplotlib>=3.8.0',
+        'seaborn': 'seaborn>=0.13.0',
+        'plotly': 'plotly>=5.17.0',
+        'python-dateutil': 'python-dateutil>=2.8.2',
+        'tabulate': 'tabulate>=0.9.0',
+        'colorama': 'colorama>=0.4.6'
+    }
+    
+    missing_packages = []
+    
+    for package, pip_name in required_packages.items():
+        try:
+            __import__(package)
+        except ImportError:
+            missing_packages.append(pip_name)
+    
+    if missing_packages:
+        print("🔍 检测到缺少依赖包，正在自动安装...")
+        import subprocess
+        import sys
+        
+        for package in missing_packages:
+            print(f"📦 安装 {package}...")
+            try:
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+                print(f"✅ {package} 安装成功")
+            except subprocess.CalledProcessError as e:
+                print(f"❌ {package} 安装失败: {e}")
+                print("请手动运行: pip install -r requirements.txt")
+                sys.exit(1)
+        
+        print("🎉 所有依赖包安装完成！")
+        print("⚠️  注意: 建议使用虚拟环境来管理依赖包")
+        print("   创建虚拟环境: python3 -m venv aws_cost_env")
+        print("   激活虚拟环境: source aws_cost_env/bin/activate")
+        print()
+
+# 检查依赖
+check_and_install_dependencies()
+
 import boto3
 import pandas as pd
 import numpy as np

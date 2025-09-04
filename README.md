@@ -9,6 +9,7 @@
 - **多维度分析** - 按服务、区域、时间等维度分析费用
 - **美观图表** - 生成专业的PNG图表和HTML仪表板
 - **命令行界面** - 支持参数化执行，无需交互
+- **自动依赖安装** - 自动检测并安装缺少的Python包
 - **自动凭证检测** - 智能检测AWS凭证配置
 - **多格式输出** - 支持TXT、HTML、PNG等多种输出格式
 
@@ -20,31 +21,31 @@ git clone https://github.com/songqipeng/aws-cost-analyzer.git
 cd aws-cost-analyzer
 ```
 
-### 2. 创建虚拟环境
+### 2. 运行程序（自动安装依赖）
 ```bash
-python3 -m venv aws_cost_env
-source aws_cost_env/bin/activate  # Linux/Mac
-# 或
-aws_cost_env\Scripts\activate     # Windows
+# 直接运行，程序会自动检测并安装缺少的依赖包
+python3 aws_cost_analyzer.py
+
+# 或者设置为可执行文件后直接运行
+chmod +x aws_cost_analyzer.py
+./aws_cost_analyzer.py
 ```
 
-### 3. 安装依赖
-```bash
-pip install -r requirements.txt
-```
-
-### 4. 全局安装（可选）
+### 3. 全局安装（可选）
 ```bash
 sudo cp aws_cost_analyzer.py /usr/local/bin/aws_cost_analyzer
 ```
 
-### 5. 运行程序
+### 4. 使用虚拟环境（推荐）
 ```bash
-# 激活虚拟环境
-source aws_cost_env/bin/activate
+# 创建虚拟环境
+python3 -m venv aws_cost_env
+source aws_cost_env/bin/activate  # Linux/Mac
+# 或
+aws_cost_env\Scripts\activate     # Windows
 
 # 运行程序
-./aws_cost_analyzer
+python3 aws_cost_analyzer.py
 ```
 
 ## 🔧 使用方法
