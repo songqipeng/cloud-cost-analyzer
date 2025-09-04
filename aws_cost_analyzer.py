@@ -15,7 +15,7 @@ def check_and_install_dependencies():
         'seaborn': 'seaborn>=0.13.0',
         'plotly': 'plotly>=5.17.0',
         'dateutil': 'python-dateutil>=2.8.2',  # 导入名是dateutil，包名是python-dateutil
-        'tabulate': 'tabulate>=0.9.0',
+        'rich': 'rich>=13.0.0',
         'colorama': 'colorama>=0.4.6'
     }
     
@@ -53,7 +53,7 @@ check_and_install_dependencies()
 
 def format_table(df, title=""):
     """
-    自定义表格格式化函数，确保完美对齐
+    使用Rich库创建美观的表格
     """
     if df is None or df.empty:
         return ""
@@ -61,39 +61,24 @@ def format_table(df, title=""):
     # 重置索引，将索引作为第一列
     df_display = df.reset_index()
     
-    # 计算每列的最大宽度
-    col_widths = {}
+    # 创建Rich表格
+    table = Table(show_header=True, header_style="bold magenta")
+    
+    # 添加列
     for col in df_display.columns:
-        # 列名宽度
-        header_width = len(str(col))
-        # 数据宽度
-        data_width = df_display[col].astype(str).str.len().max()
-        col_widths[col] = max(header_width, data_width) + 2  # 额外2个字符用于间距
+        if col in ['总费用', '平均费用', '记录数']:
+            table.add_column(col, justify="right", style="cyan")
+        else:
+            table.add_column(col, justify="left", style="white")
     
-    # 生成表格
-    result = []
-    
-    # 表头
-    header_line = "|"
-    separator_line = "|"
-    for col in df_display.columns:
-        header_line += f" {str(col):<{col_widths[col]-1}}|"
-        separator_line += "-" * col_widths[col] + "|"
-    
-    result.append(header_line)
-    result.append(separator_line)
-    
-    # 数据行
+    # 添加数据行
     for _, row in df_display.iterrows():
-        data_line = "|"
-        for col in df_display.columns:
-            if col in ['总费用', '平均费用', '记录数']:  # 数字列右对齐
-                data_line += f" {str(row[col]):>{col_widths[col]-1}}|"
-            else:  # 文本列左对齐
-                data_line += f" {str(row[col]):<{col_widths[col]-1}}|"
-        result.append(data_line)
+        table.add_row(*[str(row[col]) for col in df_display.columns])
     
-    return "\n".join(result)
+    # 创建控制台并打印表格
+    console = Console()
+    console.print(table)
+    return ""  # 返回空字符串，避免打印None
 
 import boto3
 import pandas as pd
@@ -110,7 +95,8 @@ import os
 import sys
 import getpass
 import argparse
-# from tabulate import tabulate  # 不再使用tabulate，改用自定义格式化
+from rich.console import Console
+from rich.table import Table
 from colorama import init, Fore, Style
 import warnings
 
