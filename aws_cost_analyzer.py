@@ -61,8 +61,8 @@ def format_table(df, title=""):
     # 重置索引，将索引作为第一列
     df_display = df.reset_index()
     
-    # 创建Rich表格
-    table = Table(show_header=True, header_style="bold magenta", width=80)
+    # 创建Rich表格，添加行分隔线
+    table = Table(show_header=True, header_style="bold magenta", width=80, show_lines=True)
     
     # 添加列
     for col in df_display.columns:
@@ -96,8 +96,8 @@ def print_cost_summary(df):
     # 创建控制台
     console = Console()
     
-    # 创建费用摘要表格
-    table = Table(show_header=True, header_style="bold magenta", width=60)
+    # 创建费用摘要表格，添加行分隔线
+    table = Table(show_header=True, header_style="bold magenta", width=60, show_lines=True)
     table.add_column("费用类型", justify="left", style="white", width=20)
     table.add_column("金额", justify="right", style="cyan", width=15)
     
