@@ -16,7 +16,7 @@
 
 ### 1. 克隆项目
 ```bash
-git clone https://github.com/yourusername/aws-cost-analyzer.git
+git clone https://github.com/songqipeng/aws-cost-analyzer.git
 cd aws-cost-analyzer
 ```
 
