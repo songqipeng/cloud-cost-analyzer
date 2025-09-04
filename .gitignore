@@ -50,9 +50,12 @@ aws-credentials.json
 # Output files
 *.png
 *.html
-*.txt
 reports/
 output/
+
+# Keep requirements.txt but ignore other txt files
+!requirements.txt
+*.txt
 
 # Logs
 *.log
