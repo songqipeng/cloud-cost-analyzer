@@ -62,7 +62,7 @@ def format_table(df, title=""):
     df_display = df.reset_index()
     
     # 创建Rich表格
-    table = Table(show_header=True, header_style="bold magenta")
+    table = Table(show_header=True, header_style="bold magenta", width=80)
     
     # 添加列
     for col in df_display.columns:
@@ -82,7 +82,7 @@ def format_table(df, title=""):
 
 def print_cost_summary(df):
     """
-    使用Rich库创建美观的费用摘要
+    使用Rich库创建美观的费用摘要表格
     """
     if df is None or df.empty:
         return
@@ -96,23 +96,18 @@ def print_cost_summary(df):
     # 创建控制台
     console = Console()
     
-    # 创建费用摘要面板
-    summary_text = f"""
-[bold green]总费用:[/bold green] [bold cyan]${total_cost:.2f}[/bold cyan]
-[bold yellow]平均每日费用:[/bold yellow] [bold cyan]${avg_daily_cost:.2f}[/bold cyan]
-[bold red]最高单日费用:[/bold red] [bold cyan]${max_daily_cost:.2f}[/bold cyan]
-[bold green]最低单日费用:[/bold green] [bold cyan]${min_daily_cost:.2f}[/bold cyan]
-    """.strip()
+    # 创建费用摘要表格
+    table = Table(show_header=True, header_style="bold magenta", width=60)
+    table.add_column("费用类型", justify="left", style="white", width=20)
+    table.add_column("金额", justify="right", style="cyan", width=15)
     
-    # 创建面板
-    panel = Panel(
-        summary_text,
-        title="[bold magenta]AWS费用摘要[/bold magenta]",
-        border_style="bright_blue",
-        padding=(1, 2)
-    )
+    # 添加数据行
+    table.add_row("总费用", f"${total_cost:.2f}")
+    table.add_row("平均每日费用", f"${avg_daily_cost:.2f}")
+    table.add_row("最高单日费用", f"${max_daily_cost:.2f}")
+    table.add_row("最低单日费用", f"${min_daily_cost:.2f}")
     
-    console.print(panel)
+    console.print(table)
 
 import boto3
 import pandas as pd
