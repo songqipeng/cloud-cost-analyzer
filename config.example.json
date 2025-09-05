@@ -1,0 +1,28 @@
+{
+  "notifications": {
+    "email": {
+      "enabled": true,
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587,
+      "sender_email": "your-email@gmail.com",
+      "sender_password": "your-app-password",
+      "recipient_email": "recipient@example.com",
+      "use_tls": true
+    },
+    "feishu": {
+      "enabled": true,
+      "webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook-token",
+      "secret": "your-secret-key"
+    }
+  },
+  "schedule": {
+    "enabled": true,
+    "time": "09:00",
+    "timezone": "Asia/Shanghai",
+    "analysis_type": "quick"
+  },
+  "aws": {
+    "default_region": "us-east-1",
+    "cost_threshold": 0.01
+  }
+}

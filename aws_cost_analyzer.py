@@ -16,7 +16,9 @@ def check_and_install_dependencies():
         'plotly': 'plotly>=5.17.0',
         'dateutil': 'python-dateutil>=2.8.2',  # 导入名是dateutil，包名是python-dateutil
         'rich': 'rich>=13.0.0',
-        'colorama': 'colorama>=0.4.6'
+        'colorama': 'colorama>=0.4.6',
+        'requests': 'requests>=2.31.0',
+        'schedule': 'schedule>=1.2.0'
     }
     
     missing_packages = []
@@ -80,6 +82,194 @@ def format_table(df, title=""):
     console.print(table)
     return ""  # 返回空字符串，避免打印None
 
+def load_config():
+    """加载配置文件"""
+    config_file = 'config.json'
+    if not os.path.exists(config_file):
+        print(f"{Fore.YELLOW}⚠️  配置文件 {config_file} 不存在，使用默认配置{Style.RESET_ALL}")
+        return {
+            "notifications": {"email": {"enabled": False}, "feishu": {"enabled": False}},
+            "schedule": {"enabled": False},
+            "aws": {"default_region": "us-east-1", "cost_threshold": 0.01}
+        }
+    
+    try:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"{Fore.RED}❌ 配置文件加载失败: {e}{Style.RESET_ALL}")
+        return {
+            "notifications": {"email": {"enabled": False}, "feishu": {"enabled": False}},
+            "schedule": {"enabled": False},
+            "aws": {"default_region": "us-east-1", "cost_threshold": 0.01}
+        }
+
+def send_email_notification(config, subject, body, attachment_path=None):
+    """发送邮件通知"""
+    if not config.get("notifications", {}).get("email", {}).get("enabled", False):
+        return False
+    
+    email_config = config["notifications"]["email"]
+    
+    try:
+        # 创建邮件
+        msg = MIMEMultipart()
+        msg['From'] = email_config["sender_email"]
+        msg['To'] = email_config["recipient_email"]
+        msg['Subject'] = subject
+        
+        # 添加邮件正文
+        msg.attach(MIMEText(body, 'html', 'utf-8'))
+        
+        # 添加附件（如果有）
+        if attachment_path and os.path.exists(attachment_path):
+            with open(attachment_path, "rb") as attachment:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(attachment.read())
+                encoders.encode_base64(part)
+                part.add_header(
+                    'Content-Disposition',
+                    f'attachment; filename= {os.path.basename(attachment_path)}'
+                )
+                msg.attach(part)
+        
+        # 连接SMTP服务器并发送邮件
+        server = smtplib.SMTP(email_config["smtp_server"], email_config["smtp_port"])
+        if email_config.get("use_tls", True):
+            server.starttls()
+        server.login(email_config["sender_email"], email_config["sender_password"])
+        text = msg.as_string()
+        server.sendmail(email_config["sender_email"], email_config["recipient_email"], text)
+        server.quit()
+        
+        print(f"{Fore.GREEN}✅ 邮件发送成功{Style.RESET_ALL}")
+        return True
+        
+    except Exception as e:
+        print(f"{Fore.RED}❌ 邮件发送失败: {e}{Style.RESET_ALL}")
+        return False
+
+def send_feishu_notification(config, title, content):
+    """发送飞书通知"""
+    if not config.get("notifications", {}).get("feishu", {}).get("enabled", False):
+        return False
+    
+    feishu_config = config["notifications"]["feishu"]
+    
+    try:
+        # 构建飞书消息
+        message = {
+            "msg_type": "interactive",
+            "card": {
+                "elements": [
+                    {
+                        "tag": "div",
+                        "text": {
+                            "content": content,
+                            "tag": "lark_md"
+                        }
+                    }
+                ],
+                "header": {
+                    "title": {
+                        "content": title,
+                        "tag": "plain_text"
+                    }
+                }
+            }
+        }
+        
+        # 发送请求
+        response = requests.post(feishu_config["webhook_url"], json=message)
+        
+        if response.status_code == 200:
+            print(f"{Fore.GREEN}✅ 飞书消息发送成功{Style.RESET_ALL}")
+            return True
+        else:
+            print(f"{Fore.RED}❌ 飞书消息发送失败: {response.status_code} - {response.text}{Style.RESET_ALL}")
+            return False
+            
+    except Exception as e:
+        print(f"{Fore.RED}❌ 飞书消息发送失败: {e}{Style.RESET_ALL}")
+        return False
+
+def format_notification_content(df, service_costs, region_costs):
+    """格式化通知内容"""
+    if df is None or df.empty:
+        return "没有费用数据可分析"
+    
+    # 计算统计数据
+    total_cost = df['Cost'].sum()
+    avg_daily_cost = df.groupby('Date')['Cost'].sum().mean()
+    max_daily_cost = df.groupby('Date')['Cost'].sum().max()
+    
+    # 邮件HTML内容
+    email_content = f"""
+    <html>
+    <body>
+        <h2>📊 AWS费用分析报告</h2>
+        <p><strong>分析时间:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        
+        <h3>💰 费用摘要</h3>
+        <ul>
+            <li><strong>总费用:</strong> ${total_cost:.2f}</li>
+            <li><strong>平均每日费用:</strong> ${avg_daily_cost:.2f}</li>
+            <li><strong>最高单日费用:</strong> ${max_daily_cost:.2f}</li>
+        </ul>
+        
+        <h3>🔧 按服务分析 (前5名)</h3>
+        <ul>
+    """
+    
+    if service_costs is not None and not service_costs.empty:
+        for service, row in service_costs.head(5).iterrows():
+            email_content += f"<li><strong>{service}:</strong> ${row['总费用']:.2f}</li>"
+    
+    email_content += """
+        </ul>
+        
+        <h3>🌍 按区域分析</h3>
+        <ul>
+    """
+    
+    if region_costs is not None and not region_costs.empty:
+        for region, row in region_costs.head(5).iterrows():
+            email_content += f"<li><strong>{region}:</strong> ${row['总费用']:.2f}</li>"
+    
+    email_content += """
+        </ul>
+        
+        <p><em>此报告由AWS费用分析器自动生成</em></p>
+    </body>
+    </html>
+    """
+    
+    # 飞书Markdown内容
+    feishu_content = f"""**📊 AWS费用分析报告**
+
+**分析时间:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+**💰 费用摘要:**
+• 总费用: ${total_cost:.2f}
+• 平均每日费用: ${avg_daily_cost:.2f}
+• 最高单日费用: ${max_daily_cost:.2f}
+
+**🔧 按服务分析 (前5名):**"""
+    
+    if service_costs is not None and not service_costs.empty:
+        for service, row in service_costs.head(5).iterrows():
+            feishu_content += f"\n• {service}: ${row['总费用']:.2f}"
+    
+    feishu_content += "\n\n**🌍 按区域分析:**"
+    
+    if region_costs is not None and not region_costs.empty:
+        for region, row in region_costs.head(5).iterrows():
+            feishu_content += f"\n• {region}: ${row['总费用']:.2f}"
+    
+    feishu_content += "\n\n*此报告由AWS费用分析器自动生成*"
+    
+    return email_content, feishu_content
+
 def print_cost_summary(df):
     """
     使用Rich库创建美观的费用摘要表格
@@ -124,6 +314,14 @@ import os
 import sys
 import getpass
 import argparse
+import smtplib
+import requests
+import schedule
+import time
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -1041,6 +1239,7 @@ def print_usage_guide():
     print("  trend         费用趋势分析")
     print("  optimize      费用优化建议")
     print("  config        配置检查")
+    print("  schedule      定时运行分析任务")
     print("  help          显示此帮助信息")
     print()
     print("📅 时间范围选项 (用于 custom 命令):")
@@ -1071,6 +1270,9 @@ def print_usage_guide():
     print("  # 配置检查")
     print("  aws_cost_analyzer config")
     print()
+    print("  # 定时运行分析")
+    print("  aws_cost_analyzer schedule")
+    print()
     print("⚠️  注意事项:")
     print("  - 首次使用需要配置AWS凭证")
     print("  - 需要Cost Explorer API访问权限")
@@ -1091,7 +1293,7 @@ def parse_arguments():
     # 主命令
     parser.add_argument('command', nargs='?', default='help',
                        choices=['quick', 'custom', 'detailed', 'service', 'region', 
-                               'trend', 'optimize', 'config', 'help'],
+                               'trend', 'optimize', 'config', 'schedule', 'help'],
                        help='要执行的命令')
     
     # 时间范围选项
@@ -1156,6 +1358,59 @@ def main():
         optimization_suggestions_cli(analyzer, args)
     elif args.command == 'config':
         config_check_cli(analyzer, args)
+    elif args.command == 'schedule':
+        schedule_analysis_cli(analyzer, args)
+
+def schedule_analysis_cli(analyzer, args):
+    """定时运行分析"""
+    config = load_config()
+    
+    if not config.get("schedule", {}).get("enabled", False):
+        print(f"{Fore.RED}❌ 定时任务未启用，请在config.json中设置schedule.enabled=true{Style.RESET_ALL}")
+        return
+    
+    schedule_config = config["schedule"]
+    schedule_time = schedule_config.get("time", "09:00")
+    analysis_type = schedule_config.get("analysis_type", "quick")
+    
+    print(f"{Fore.CYAN}⏰ 启动定时任务...{Style.RESET_ALL}")
+    print(f"📅 执行时间: 每天 {schedule_time}")
+    print(f"🔍 分析类型: {analysis_type}")
+    print(f"{Fore.YELLOW}按 Ctrl+C 停止定时任务{Style.RESET_ALL}")
+    
+    def run_scheduled_analysis():
+        """执行定时分析"""
+        print(f"\n{Fore.GREEN}🕐 执行定时分析 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{Style.RESET_ALL}")
+        
+        try:
+            if analysis_type == "quick":
+                # 创建模拟的args对象
+                class MockArgs:
+                    format = 'txt'
+                    output = '.'
+                
+                mock_args = MockArgs()
+                quick_analysis_cli(analyzer, mock_args)
+            else:
+                print(f"{Fore.YELLOW}⚠️  暂不支持 {analysis_type} 类型的定时分析{Style.RESET_ALL}")
+                
+        except Exception as e:
+            print(f"{Fore.RED}❌ 定时分析执行失败: {e}{Style.RESET_ALL}")
+    
+    # 设置定时任务
+    schedule.every().day.at(schedule_time).do(run_scheduled_analysis)
+    
+    # 立即执行一次（可选）
+    print(f"{Fore.CYAN}🚀 立即执行一次分析...{Style.RESET_ALL}")
+    run_scheduled_analysis()
+    
+    # 保持程序运行
+    try:
+        while True:
+            schedule.run_pending()
+            time.sleep(60)  # 每分钟检查一次
+    except KeyboardInterrupt:
+        print(f"\n{Fore.YELLOW}⏹️  定时任务已停止{Style.RESET_ALL}")
 
 def quick_analysis_cli(analyzer, args):
     """命令行快速分析"""
@@ -1175,6 +1430,28 @@ def quick_analysis_cli(analyzer, args):
         return
     
     analyzer.print_summary(df)
+    
+    # 发送通知
+    config = load_config()
+    if config.get("notifications", {}).get("email", {}).get("enabled", False) or \
+       config.get("notifications", {}).get("feishu", {}).get("enabled", False):
+        
+        # 获取分析数据
+        service_costs = analyzer.analyze_costs_by_service(df)
+        region_costs = analyzer.analyze_costs_by_region(df)
+        
+        # 格式化通知内容
+        email_content, feishu_content = format_notification_content(df, service_costs, region_costs)
+        
+        # 发送邮件通知
+        if config.get("notifications", {}).get("email", {}).get("enabled", False):
+            subject = f"AWS费用分析报告 - {datetime.now().strftime('%Y-%m-%d')}"
+            send_email_notification(config, subject, email_content)
+        
+        # 发送飞书通知
+        if config.get("notifications", {}).get("feishu", {}).get("enabled", False):
+            title = f"AWS费用分析报告 - {datetime.now().strftime('%Y-%m-%d')}"
+            send_feishu_notification(config, title, feishu_content)
     
     if args.format in ['txt', 'all']:
         output_file = os.path.join(args.output, 'quick_analysis_report.txt')

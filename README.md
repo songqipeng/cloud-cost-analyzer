@@ -12,6 +12,9 @@
 - **自动依赖安装** - 自动检测并安装缺少的Python包
 - **自动凭证检测** - 智能检测AWS凭证配置
 - **多格式输出** - 支持TXT、HTML、PNG等多种输出格式
+- **邮件通知** - 支持SMTP邮件发送分析报告
+- **飞书通知** - 支持飞书机器人消息推送
+- **定时任务** - 支持每日定时运行分析并发送通知
 
 ## 📦 安装
 
@@ -63,6 +66,7 @@ aws_cost_env\Scripts\activate     # Windows
 - `trend` - 费用趋势分析
 - `optimize` - 费用优化建议
 - `config` - 配置检查
+- `schedule` - 定时运行分析任务
 - `help` - 显示帮助信息
 
 ### 使用示例
@@ -85,6 +89,9 @@ aws_cost_env\Scripts\activate     # Windows
 
 # 配置检查
 ./aws_cost_analyzer.py config
+
+# 定时运行分析
+./aws_cost_analyzer.py schedule
 ```
 
 ### 选项说明
@@ -101,7 +108,81 @@ aws_cost_env\Scripts\activate     # Windows
 - `--profile NAME` - 使用指定的AWS配置文件
 - `--no-auto-setup` - 跳过自动AWS凭证设置
 
+## 📧 通知功能
+
+### 邮件通知
+程序支持通过SMTP发送邮件通知，包含费用分析报告。
+
+**配置步骤：**
+1. 复制配置文件：`cp config.example.json config.json`
+2. 编辑 `config.json`，配置邮件设置：
+   ```json
+   {
+     "notifications": {
+       "email": {
+         "enabled": true,
+         "smtp_server": "smtp.gmail.com",
+         "smtp_port": 587,
+         "sender_email": "your-email@gmail.com",
+         "sender_password": "your-app-password",
+         "recipient_email": "recipient@example.com",
+         "use_tls": true
+       }
+     }
+   }
+   ```
+
+### 飞书通知
+程序支持通过飞书机器人发送消息通知。
+
+**配置步骤：**
+1. 在飞书群中添加自定义机器人
+2. 获取Webhook URL
+3. 编辑 `config.json`，配置飞书设置：
+   ```json
+   {
+     "notifications": {
+       "feishu": {
+         "enabled": true,
+         "webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook-token",
+         "secret": "your-secret-key"
+       }
+     }
+   }
+   ```
+
+## ⏰ 定时任务
+
+程序支持每日定时运行分析并发送通知。
+
+**配置步骤：**
+1. 编辑 `config.json`，启用定时任务：
+   ```json
+   {
+     "schedule": {
+       "enabled": true,
+       "time": "09:00",
+       "timezone": "Asia/Shanghai",
+       "analysis_type": "quick"
+     }
+   }
+   ```
+
+2. 运行定时任务：
+   ```bash
+   ./aws_cost_analyzer.py schedule
+   ```
+
+**定时任务特点：**
+- 支持自定义执行时间
+- 自动发送邮件和飞书通知
+- 支持后台持续运行
+- 按Ctrl+C停止任务
+
 ## ⚙️ 配置
+
+### 配置文件
+程序使用 `config.json` 进行配置，详细配置说明请参考 [CONFIG.md](CONFIG.md)。
 
 ### AWS凭证配置
 
@@ -202,7 +283,10 @@ aws-cost-analyzer/
 ├── aws_cost_analyzer.py          # 主程序文件（包含自动依赖安装）
 ├── create_beautiful_charts.py    # 美观PNG图表生成器
 ├── create_beautiful_dashboard.py # 美观HTML仪表板生成器
-└── README.md                    # 项目说明
+├── config.json                   # 配置文件（需要用户创建）
+├── config.example.json           # 配置文件示例
+├── CONFIG.md                     # 配置说明文档
+└── README.md                     # 项目说明
 ```
 
 ### 📋 文件说明
@@ -222,6 +306,21 @@ aws-cost-analyzer/
   - 生成交互式HTML仪表板
   - 响应式设计，支持各种设备
   - 深色主题，现代化UI设计
+
+- **`config.json`** - 主配置文件：
+  - 邮件通知设置
+  - 飞书通知设置
+  - 定时任务配置
+  - AWS相关配置
+
+- **`config.example.json`** - 配置文件示例：
+  - 包含所有配置项的示例值
+  - 用户可复制此文件创建自己的配置
+
+- **`CONFIG.md`** - 配置说明文档：
+  - 详细的配置项说明
+  - 常见问题解决方案
+  - 安全注意事项
 
 ## ⚠️ 注意事项
 
