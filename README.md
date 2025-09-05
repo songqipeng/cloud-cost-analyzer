@@ -67,6 +67,9 @@ aws_cost_env\Scripts\activate     # Windows
 - `optimize` - 费用优化建议
 - `config` - 配置检查
 - `schedule` - 定时运行分析任务
+- `cron-install` - 安装系统级定时任务
+- `cron-uninstall` - 卸载系统级定时任务
+- `cron-status` - 查看定时任务状态
 - `help` - 显示帮助信息
 
 ### 使用示例
@@ -92,6 +95,15 @@ aws_cost_env\Scripts\activate     # Windows
 
 # 定时运行分析
 ./aws_cost_analyzer.py schedule
+
+# 安装系统级定时任务
+./aws_cost_analyzer.py cron-install
+
+# 查看定时任务状态
+./aws_cost_analyzer.py cron-status
+
+# 卸载定时任务
+./aws_cost_analyzer.py cron-uninstall
 ```
 
 ### 选项说明
@@ -174,10 +186,11 @@ aws_cost_env\Scripts\activate     # Windows
    ```
 
 **定时任务特点：**
-- 支持自定义执行时间
+- 支持系统级cron任务（推荐）
+- 支持程序内定时任务（测试用）
 - 自动发送邮件和飞书通知
-- 支持后台持续运行
-- 按Ctrl+C停止任务
+- 第一次运行自动安装系统定时任务
+- 支持macOS和Linux系统
 
 ## ⚙️ 配置
 

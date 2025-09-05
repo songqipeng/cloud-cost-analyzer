@@ -318,6 +318,7 @@ import smtplib
 import requests
 import schedule
 import time
+import subprocess
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -1240,6 +1241,9 @@ def print_usage_guide():
     print("  optimize      费用优化建议")
     print("  config        配置检查")
     print("  schedule      定时运行分析任务")
+    print("  cron-install  安装系统级定时任务")
+    print("  cron-uninstall 卸载系统级定时任务")
+    print("  cron-status   查看定时任务状态")
     print("  help          显示此帮助信息")
     print()
     print("📅 时间范围选项 (用于 custom 命令):")
@@ -1273,6 +1277,12 @@ def print_usage_guide():
     print("  # 定时运行分析")
     print("  aws_cost_analyzer schedule")
     print()
+    print("  # 安装系统级定时任务")
+    print("  aws_cost_analyzer cron-install")
+    print()
+    print("  # 查看定时任务状态")
+    print("  aws_cost_analyzer cron-status")
+    print()
     print("⚠️  注意事项:")
     print("  - 首次使用需要配置AWS凭证")
     print("  - 需要Cost Explorer API访问权限")
@@ -1293,7 +1303,8 @@ def parse_arguments():
     # 主命令
     parser.add_argument('command', nargs='?', default='help',
                        choices=['quick', 'custom', 'detailed', 'service', 'region', 
-                               'trend', 'optimize', 'config', 'schedule', 'help'],
+                               'trend', 'optimize', 'config', 'schedule', 'cron-install', 
+                               'cron-uninstall', 'cron-status', 'help'],
                        help='要执行的命令')
     
     # 时间范围选项
@@ -1360,9 +1371,177 @@ def main():
         config_check_cli(analyzer, args)
     elif args.command == 'schedule':
         schedule_analysis_cli(analyzer, args)
+    elif args.command == 'cron-install':
+        cron_install_cli(analyzer, args)
+    elif args.command == 'cron-uninstall':
+        cron_uninstall_cli(analyzer, args)
+    elif args.command == 'cron-status':
+        cron_status_cli(analyzer, args)
+
+def get_script_path():
+    """获取当前脚本的绝对路径"""
+    return os.path.abspath(__file__)
+
+def get_cron_entry(config):
+    """生成cron条目"""
+    schedule_config = config.get("schedule", {})
+    time_str = schedule_config.get("time", "09:00")
+    cron_comment = schedule_config.get("cron_comment", "AWS Cost Analyzer")
+    
+    # 解析时间 (HH:MM)
+    hour, minute = time_str.split(':')
+    
+    # 生成cron表达式: 分钟 小时 * * * 命令
+    script_path = get_script_path()
+    cron_entry = f"{minute} {hour} * * * cd {os.path.dirname(script_path)} && {script_path} quick # {cron_comment}"
+    
+    return cron_entry
+
+def cron_install_cli(analyzer, args):
+    """安装cron定时任务"""
+    config = load_config()
+    
+    if not config.get("schedule", {}).get("enabled", False):
+        print(f"{Fore.RED}❌ 定时任务未启用，请在config.json中设置schedule.enabled=true{Style.RESET_ALL}")
+        return
+    
+    try:
+        # 检查是否已存在cron任务
+        existing_cron = get_existing_cron()
+        if existing_cron:
+            print(f"{Fore.YELLOW}⚠️  已存在AWS费用分析器的cron任务{Style.RESET_ALL}")
+            print(f"现有任务: {existing_cron}")
+            
+            response = input("是否要替换现有任务? (y/N): ").strip().lower()
+            if response != 'y':
+                print(f"{Fore.CYAN}取消安装{Style.RESET_ALL}")
+                return
+            
+            # 先卸载现有任务
+            cron_uninstall_cli(analyzer, args)
+        
+        # 生成新的cron条目
+        cron_entry = get_cron_entry(config)
+        
+        # 获取当前用户的crontab
+        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+        current_crontab = result.stdout if result.returncode == 0 else ""
+        
+        # 添加新的cron条目
+        new_crontab = current_crontab.rstrip() + "\n" + cron_entry + "\n"
+        
+        # 写入新的crontab
+        process = subprocess.Popen(['crontab', '-'], stdin=subprocess.PIPE, text=True)
+        process.communicate(input=new_crontab)
+        
+        if process.returncode == 0:
+            print(f"{Fore.GREEN}✅ Cron定时任务安装成功！{Style.RESET_ALL}")
+            print(f"📅 执行时间: 每天 {config['schedule']['time']}")
+            print(f"🔍 分析类型: {config['schedule']['analysis_type']}")
+            print(f"📝 Cron条目: {cron_entry}")
+        else:
+            print(f"{Fore.RED}❌ Cron定时任务安装失败{Style.RESET_ALL}")
+            
+    except Exception as e:
+        print(f"{Fore.RED}❌ 安装cron任务时出错: {e}{Style.RESET_ALL}")
+
+def cron_uninstall_cli(analyzer, args):
+    """卸载cron定时任务"""
+    try:
+        # 获取当前用户的crontab
+        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"{Fore.YELLOW}⚠️  没有找到现有的crontab{Style.RESET_ALL}")
+            return
+        
+        current_crontab = result.stdout
+        lines = current_crontab.split('\n')
+        
+        # 过滤掉AWS费用分析器的cron条目
+        filtered_lines = []
+        removed_count = 0
+        
+        for line in lines:
+            if 'AWS Cost Analyzer' in line or 'aws_cost_analyzer' in line:
+                removed_count += 1
+                print(f"🗑️  移除: {line.strip()}")
+            else:
+                filtered_lines.append(line)
+        
+        if removed_count == 0:
+            print(f"{Fore.YELLOW}⚠️  没有找到AWS费用分析器的cron任务{Style.RESET_ALL}")
+            return
+        
+        # 写入新的crontab
+        new_crontab = '\n'.join(filtered_lines)
+        if new_crontab.strip():
+            process = subprocess.Popen(['crontab', '-'], stdin=subprocess.PIPE, text=True)
+            process.communicate(input=new_crontab)
+        else:
+            # 如果crontab为空，删除它
+            subprocess.run(['crontab', '-r'])
+        
+        print(f"{Fore.GREEN}✅ 成功移除 {removed_count} 个cron任务{Style.RESET_ALL}")
+        
+    except Exception as e:
+        print(f"{Fore.RED}❌ 卸载cron任务时出错: {e}{Style.RESET_ALL}")
+
+def cron_status_cli(analyzer, args):
+    """查看cron任务状态"""
+    try:
+        # 获取当前用户的crontab
+        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+        if result.returncode != 0:
+            print(f"{Fore.YELLOW}⚠️  没有找到现有的crontab{Style.RESET_ALL}")
+            return
+        
+        current_crontab = result.stdout
+        lines = current_crontab.split('\n')
+        
+        # 查找AWS费用分析器的cron条目
+        aws_cron_entries = []
+        for line in lines:
+            if 'AWS Cost Analyzer' in line or 'aws_cost_analyzer' in line:
+                aws_cron_entries.append(line.strip())
+        
+        if aws_cron_entries:
+            print(f"{Fore.GREEN}✅ 找到 {len(aws_cron_entries)} 个AWS费用分析器的cron任务:{Style.RESET_ALL}")
+            for i, entry in enumerate(aws_cron_entries, 1):
+                print(f"  {i}. {entry}")
+        else:
+            print(f"{Fore.YELLOW}⚠️  没有找到AWS费用分析器的cron任务{Style.RESET_ALL}")
+        
+        # 显示配置信息
+        config = load_config()
+        if config.get("schedule", {}).get("enabled", False):
+            schedule_config = config["schedule"]
+            print(f"\n📋 当前配置:")
+            print(f"  执行时间: {schedule_config.get('time', '09:00')}")
+            print(f"  分析类型: {schedule_config.get('analysis_type', 'quick')}")
+            print(f"  时区: {schedule_config.get('timezone', 'Asia/Shanghai')}")
+        else:
+            print(f"\n{Fore.YELLOW}⚠️  定时任务在配置中未启用{Style.RESET_ALL}")
+            
+    except Exception as e:
+        print(f"{Fore.RED}❌ 查看cron状态时出错: {e}{Style.RESET_ALL}")
+
+def get_existing_cron():
+    """获取现有的AWS费用分析器cron任务"""
+    try:
+        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+        if result.returncode != 0:
+            return None
+        
+        lines = result.stdout.split('\n')
+        for line in lines:
+            if 'AWS Cost Analyzer' in line or 'aws_cost_analyzer' in line:
+                return line.strip()
+        return None
+    except:
+        return None
 
 def schedule_analysis_cli(analyzer, args):
-    """定时运行分析"""
+    """定时运行分析 - 现在推荐使用系统级cron任务"""
     config = load_config()
     
     if not config.get("schedule", {}).get("enabled", False):
@@ -1370,13 +1549,39 @@ def schedule_analysis_cli(analyzer, args):
         return
     
     schedule_config = config["schedule"]
+    auto_install = schedule_config.get("auto_install", True)
+    
+    # 检查是否已存在cron任务
+    existing_cron = get_existing_cron()
+    
+    if not existing_cron and auto_install:
+        print(f"{Fore.CYAN}🔧 检测到未安装系统级定时任务，正在自动安装...{Style.RESET_ALL}")
+        cron_install_cli(analyzer, args)
+        return
+    elif existing_cron:
+        print(f"{Fore.GREEN}✅ 已存在系统级定时任务{Style.RESET_ALL}")
+        print(f"📝 任务: {existing_cron}")
+        print(f"{Fore.CYAN}💡 提示: 使用 'aws_cost_analyzer cron-status' 查看状态{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}💡 提示: 使用 'aws_cost_analyzer cron-uninstall' 卸载任务{Style.RESET_ALL}")
+        return
+    else:
+        print(f"{Fore.YELLOW}⚠️  未找到系统级定时任务{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}💡 建议: 使用 'aws_cost_analyzer cron-install' 安装系统级定时任务{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}💡 或者: 继续使用程序内定时任务（需要保持程序运行）{Style.RESET_ALL}")
+        
+        response = input("是否继续使用程序内定时任务? (y/N): ").strip().lower()
+        if response != 'y':
+            return
+    
+    # 原有的程序内定时任务逻辑（作为备选方案）
     schedule_time = schedule_config.get("time", "09:00")
     analysis_type = schedule_config.get("analysis_type", "quick")
     
-    print(f"{Fore.CYAN}⏰ 启动定时任务...{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}⏰ 启动程序内定时任务...{Style.RESET_ALL}")
     print(f"📅 执行时间: 每天 {schedule_time}")
     print(f"🔍 分析类型: {analysis_type}")
     print(f"{Fore.YELLOW}按 Ctrl+C 停止定时任务{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}⚠️  注意: 程序内定时任务需要保持程序运行{Style.RESET_ALL}")
     
     def run_scheduled_analysis():
         """执行定时分析"""

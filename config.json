@@ -16,10 +16,12 @@
     }
   },
   "schedule": {
-    "enabled": false,
+    "enabled": true,
     "time": "09:00",
     "timezone": "Asia/Shanghai",
-    "analysis_type": "quick"
+    "analysis_type": "quick",
+    "auto_install": true,
+    "cron_comment": "AWS Cost Analyzer - Daily Analysis"
   },
   "aws": {
     "default_region": "us-east-1",

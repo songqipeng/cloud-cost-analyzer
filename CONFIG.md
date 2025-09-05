@@ -67,7 +67,9 @@ cp config.example.json config.json
     "enabled": true,                      // 是否启用定时任务
     "time": "09:00",                      // 执行时间 (24小时制)
     "timezone": "Asia/Shanghai",          // 时区
-    "analysis_type": "quick"              // 分析类型: quick, custom
+    "analysis_type": "quick",             // 分析类型: quick, custom
+    "auto_install": true,                 // 是否自动安装系统级定时任务
+    "cron_comment": "AWS Cost Analyzer - Daily Analysis"  // cron任务注释
   }
 }
 ```
@@ -75,6 +77,10 @@ cp config.example.json config.json
 **时间格式说明：**
 - 使用24小时制，格式：HH:MM
 - 例如：09:00 (上午9点), 18:30 (下午6点30分)
+
+**定时任务类型：**
+- **系统级cron任务** (推荐): 使用系统cron，无需保持程序运行
+- **程序内定时任务**: 需要保持程序运行，适合测试和调试
 
 ### 3. AWS配置 (aws)
 
@@ -129,6 +135,21 @@ cp config.example.json config.json
     "analysis_type": "quick"
   }
 }
+```
+
+**安装和管理定时任务：**
+```bash
+# 安装系统级定时任务
+./aws_cost_analyzer.py cron-install
+
+# 查看定时任务状态
+./aws_cost_analyzer.py cron-status
+
+# 卸载定时任务
+./aws_cost_analyzer.py cron-uninstall
+
+# 自动安装（推荐，第一次运行时）
+./aws_cost_analyzer.py schedule
 ```
 
 ## 📧 通知内容格式
