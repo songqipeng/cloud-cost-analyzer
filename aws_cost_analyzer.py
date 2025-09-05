@@ -153,6 +153,13 @@ def send_email_notification(config, subject, body, attachment_path=None):
     
     email_config = config["notifications"]["email"]
     
+    # 检查必要的配置项
+    required_fields = ["smtp_server", "smtp_port", "sender_email", "sender_password", "recipient_email"]
+    for field in required_fields:
+        if not email_config.get(field):
+            print(f"{Fore.YELLOW}⚠️  邮件配置不完整，缺少 {field}，跳过邮件通知{Style.RESET_ALL}")
+            return False
+    
     try:
         # 创建邮件
         msg = MIMEMultipart()
@@ -188,7 +195,7 @@ def send_email_notification(config, subject, body, attachment_path=None):
         return True
         
     except Exception as e:
-        print(f"{Fore.RED}❌ 邮件发送失败: {e}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}⚠️  邮件发送失败: {e}，跳过邮件通知{Style.RESET_ALL}")
         return False
 
 def send_feishu_notification(config, title, content):
@@ -197,6 +204,11 @@ def send_feishu_notification(config, title, content):
         return False
     
     feishu_config = config["notifications"]["feishu"]
+    
+    # 检查必要的配置项
+    if not feishu_config.get("webhook_url"):
+        print(f"{Fore.YELLOW}⚠️  飞书配置不完整，缺少 webhook_url，跳过飞书通知{Style.RESET_ALL}")
+        return False
     
     try:
         # 构建飞书消息
@@ -222,18 +234,50 @@ def send_feishu_notification(config, title, content):
         }
         
         # 发送请求
-        response = requests.post(feishu_config["webhook_url"], json=message)
+        response = requests.post(feishu_config["webhook_url"], json=message, timeout=10)
         
         if response.status_code == 200:
             print(f"{Fore.GREEN}✅ 飞书消息发送成功{Style.RESET_ALL}")
             return True
         else:
-            print(f"{Fore.RED}❌ 飞书消息发送失败: {response.status_code} - {response.text}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}⚠️  飞书消息发送失败: {response.status_code} - {response.text}，跳过飞书通知{Style.RESET_ALL}")
             return False
             
     except Exception as e:
-        print(f"{Fore.RED}❌ 飞书消息发送失败: {e}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}⚠️  飞书消息发送失败: {e}，跳过飞书通知{Style.RESET_ALL}")
         return False
+
+def send_notifications(df, service_costs, region_costs, subject_suffix=""):
+    """发送通知的通用函数"""
+    config = load_config()
+    print(f"\n{Fore.CYAN}📤 发送通知...{Style.RESET_ALL}")
+    
+    # 格式化通知内容
+    email_content, feishu_content = format_notification_content(df, service_costs, region_costs)
+    
+    # 发送邮件通知
+    email_success = False
+    if config.get("notifications", {}).get("email", {}).get("enabled", False):
+        subject = f"AWS费用分析报告 - {datetime.now().strftime('%Y-%m-%d')}{subject_suffix}"
+        email_success = send_email_notification(config, subject, email_content)
+    else:
+        print(f"{Fore.CYAN}📧 邮件通知未启用{Style.RESET_ALL}")
+    
+    # 发送飞书通知
+    feishu_success = False
+    if config.get("notifications", {}).get("feishu", {}).get("enabled", False):
+        title = f"AWS费用分析报告 - {datetime.now().strftime('%Y-%m-%d')}{subject_suffix}"
+        feishu_success = send_feishu_notification(config, title, feishu_content)
+    else:
+        print(f"{Fore.CYAN}📱 飞书通知未启用{Style.RESET_ALL}")
+    
+    # 显示通知结果摘要
+    if email_success or feishu_success:
+        print(f"{Fore.GREEN}✅ 通知发送完成{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.YELLOW}⚠️  没有成功发送任何通知{Style.RESET_ALL}")
+    
+    return email_success or feishu_success
 
 def format_notification_content(df, service_costs, region_costs):
     """格式化通知内容"""
@@ -550,6 +594,9 @@ class AWSCostAnalyzer:
                     'Cost': float(cost),
                     'Unit': unit
                 })
+        
+        if not parsed_data:
+            return pd.DataFrame()  # 返回空的DataFrame
         
         df = pd.DataFrame(parsed_data)
         df['Date'] = pd.to_datetime(df['Date'])
@@ -1849,27 +1896,10 @@ def quick_analysis_cli(analyzer, args):
     
     analyzer.print_summary(df)
     
-    # 发送通知
-    config = load_config()
-    if config.get("notifications", {}).get("email", {}).get("enabled", False) or \
-       config.get("notifications", {}).get("feishu", {}).get("enabled", False):
-        
-        # 获取分析数据
-        service_costs = analyzer.analyze_costs_by_service(df)
-        region_costs = analyzer.analyze_costs_by_region(df)
-        
-        # 格式化通知内容
-        email_content, feishu_content = format_notification_content(df, service_costs, region_costs)
-        
-        # 发送邮件通知
-        if config.get("notifications", {}).get("email", {}).get("enabled", False):
-            subject = f"AWS费用分析报告 - {datetime.now().strftime('%Y-%m-%d')}"
-            send_email_notification(config, subject, email_content)
-        
-        # 发送飞书通知
-        if config.get("notifications", {}).get("feishu", {}).get("enabled", False):
-            title = f"AWS费用分析报告 - {datetime.now().strftime('%Y-%m-%d')}"
-            send_feishu_notification(config, title, feishu_content)
+    # 发送通知（每次手动执行都发送）
+    service_costs = analyzer.analyze_costs_by_service(df)
+    region_costs = analyzer.analyze_costs_by_region(df)
+    send_notifications(df, service_costs, region_costs)
     
     if args.format in ['txt', 'all']:
         output_file = os.path.join(args.output, 'quick_analysis_report.txt')
@@ -1901,6 +1931,11 @@ def custom_analysis_cli(analyzer, args):
             return
         
         analyzer.print_summary(df)
+        
+        # 发送通知（每次手动执行都发送）
+        service_costs = analyzer.analyze_costs_by_service(df)
+        region_costs = analyzer.analyze_costs_by_region(df)
+        send_notifications(df, service_costs, region_costs, f" - {args.start} 到 {args.end}")
         
         if args.format in ['txt', 'all']:
             output_file = os.path.join(args.output, f'custom_analysis_{args.start}_to_{args.end}.txt')
