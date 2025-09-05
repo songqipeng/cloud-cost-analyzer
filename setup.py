@@ -40,7 +40,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "aws-cost-analyzer=aws_cost_analyzer_new:main",
+            "aws-cost-analyzer=aws_cost_analyzer:main",
         ],
     },
     include_package_data=True,

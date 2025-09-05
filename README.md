@@ -26,6 +26,25 @@
 - **永远不要**将包含真实密码的配置文件提交到Git仓库
 - 建议定期更换邮箱密码和API密钥
 
+### 🔐 环境变量支持
+
+为了增强安全性，支持通过环境变量配置敏感信息：
+
+```bash
+# 邮件配置
+export AWS_ANALYZER_EMAIL_PASSWORD="your_email_password"
+export AWS_ANALYZER_SENDER_EMAIL="your_email@example.com"
+export AWS_ANALYZER_RECIPIENT_EMAIL="recipient@example.com"
+export AWS_ANALYZER_SMTP_SERVER="smtp.gmail.com"
+export AWS_ANALYZER_SMTP_PORT="587"
+
+# 飞书配置
+export AWS_ANALYZER_FEISHU_WEBHOOK="https://open.feishu.cn/open-apis/bot/v2/hook/xxx"
+export AWS_ANALYZER_FEISHU_SECRET="your_secret"
+```
+
+环境变量优先级高于配置文件，推荐在生产环境中使用。
+
 ## 📦 安装
 
 ### 1. 克隆项目
@@ -74,6 +93,18 @@ pip install -r requirements.txt
 
 # 运行程序
 ./aws_cost_analyzer.py
+```
+
+### 6. 运行测试
+```bash
+# 安装测试依赖
+pip install pytest pytest-cov
+
+# 运行所有测试
+python -m pytest tests/ -v
+
+# 运行测试并生成覆盖率报告
+python -m pytest tests/ --cov=src/aws_cost_analyzer --cov-report=html
 ```
 
 ## 🔧 使用方法

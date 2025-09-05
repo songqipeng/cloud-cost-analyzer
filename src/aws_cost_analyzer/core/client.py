@@ -2,9 +2,13 @@
 AWS客户端模块
 """
 import boto3
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from botocore.exceptions import ClientError, NoCredentialsError
 from ..utils.validators import DataValidator
+from ..utils.exceptions import AWSConnectionError, AWSConfigError
+from ..utils.logger import get_logger
+
+logger = get_logger()
 
 
 class AWSClient:
@@ -27,16 +31,19 @@ class AWSClient:
     def _initialize_client(self) -> None:
         """初始化AWS客户端"""
         try:
+            logger.info(f"初始化AWS客户端 - Profile: {self.profile}, Region: {self.region}")
             self.session = boto3.Session(profile_name=self.profile)
             self.ce_client = self.session.client('ce', region_name=self.region)
+            logger.info("AWS客户端初始化成功")
         except Exception as e:
-            raise Exception(f"AWS客户端初始化失败: {e}")
+            logger.error(f"AWS客户端初始化失败: {e}")
+            raise AWSConnectionError(f"AWS客户端初始化失败: {e}")
     
-    def validate_credentials(self) -> tuple[bool, Optional[str]]:
+    def validate_credentials(self) -> Tuple[bool, Optional[str]]:
         """验证AWS凭证"""
         return DataValidator.validate_aws_credentials(self.profile)
     
-    def validate_cost_explorer_permissions(self) -> tuple[bool, Optional[str]]:
+    def validate_cost_explorer_permissions(self) -> Tuple[bool, Optional[str]]:
         """验证Cost Explorer API权限"""
         return DataValidator.validate_cost_explorer_permissions(self.profile)
     
@@ -84,16 +91,20 @@ class AWSClient:
             return response
         except ClientError as e:
             error_code = e.response['Error']['Code']
+            error_message = e.response['Error']['Message']
+            logger.error(f"AWS API错误: {error_code} - {error_message}")
+            
             if error_code == 'AccessDenied':
-                raise PermissionError("缺少Cost Explorer API访问权限")
+                raise AWSConnectionError("缺少Cost Explorer API访问权限")
             elif error_code == 'ThrottlingException':
-                raise Exception("API调用频率过高，请稍后重试")
+                raise AWSConnectionError("API调用频率过高，请稍后重试")
             elif error_code == 'InvalidParameterValue':
-                raise ValueError(f"参数值无效: {e.response['Error']['Message']}")
+                raise AWSConfigError(f"参数值无效: {error_message}")
             else:
-                raise Exception(f"获取费用数据失败: {error_code} - {e.response['Error']['Message']}")
+                raise AWSConnectionError(f"获取费用数据失败: {error_code} - {error_message}")
         except Exception as e:
-            raise Exception(f"获取费用数据异常: {e}")
+            logger.error(f"获取费用数据异常: {e}")
+            raise AWSConnectionError(f"获取费用数据异常: {e}")
     
     def get_cost_and_usage_with_retry(
         self,
@@ -145,7 +156,7 @@ class AWSClient:
         except Exception as e:
             raise Exception(f"获取账户信息失败: {e}")
     
-    def test_connection(self) -> tuple[bool, str]:
+    def test_connection(self) -> Tuple[bool, str]:
         """测试AWS连接"""
         try:
             # 验证凭证

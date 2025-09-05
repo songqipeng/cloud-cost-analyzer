@@ -17,7 +17,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from aws_cost_analyzer.core.analyzer import AWSCostAnalyzer
 from aws_cost_analyzer.utils.config import Config
 from aws_cost_analyzer.utils.validators import DataValidator
+from aws_cost_analyzer.utils.logger import get_logger
+from aws_cost_analyzer.utils.exceptions import AWSAnalyzerError, AWSConnectionError
 from colorama import init, Fore, Style
+
+logger = get_logger()
 
 # 初始化colorama
 init(autoreset=True)
@@ -47,13 +51,17 @@ def check_and_install_dependencies():
             missing_packages.append(pip_name)
     
     if missing_packages:
+        logger.info("检测到缺少依赖包，正在自动安装...")
         print(f"{Fore.YELLOW}📦 检测到缺少依赖包，正在自动安装...{Style.RESET_ALL}")
         for package in missing_packages:
             try:
+                logger.info(f"正在安装 {package}...")
                 print(f"正在安装 {package}...")
                 subprocess.check_call([sys.executable, '-m', 'pip', 'install', package])
+                logger.info(f"{package} 安装成功")
                 print(f"{Fore.GREEN}✅ {package} 安装成功{Style.RESET_ALL}")
             except subprocess.CalledProcessError as e:
+                logger.error(f"{package} 安装失败: {e}")
                 print(f"{Fore.RED}❌ {package} 安装失败: {e}{Style.RESET_ALL}")
                 return False
     
