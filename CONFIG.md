@@ -1,7 +1,28 @@
 # AWS费用分析器 - 配置说明
 
-## 📋 配置文件说明
+## 📋 配置方式
 
+### 1. 交互式配置向导（推荐）
+```bash
+./aws_cost_analyzer.py setup
+```
+- 引导式配置，用户友好
+- 支持多种邮件服务商选择
+- 自动生成配置文件
+
+### 2. 命令行配置
+```bash
+# 配置邮件通知
+./aws_cost_analyzer.py setup --enable-email --email-provider gmail --sender-email your@gmail.com --recipient-email admin@company.com
+
+# 配置飞书通知
+./aws_cost_analyzer.py setup --enable-feishu --feishu-webhook https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+
+# 配置定时任务
+./aws_cost_analyzer.py setup --enable-schedule --schedule-time 09:00 --schedule-type quick
+```
+
+### 3. 手动编辑配置文件
 程序使用 `config.json` 文件进行配置。首次使用时，请复制 `config.example.json` 为 `config.json` 并根据需要修改配置。
 
 ```bash
@@ -29,16 +50,34 @@ cp config.example.json config.json
 }
 ```
 
-**常用SMTP服务器配置：**
-- **Gmail**: smtp.gmail.com:587 (TLS)
-- **Outlook**: smtp-mail.outlook.com:587 (TLS)
-- **QQ邮箱**: smtp.qq.com:587 (TLS)
-- **163邮箱**: smtp.163.com:25 或 smtp.163.com:994 (SSL)
+**支持的邮件服务商：**
 
-**Gmail配置说明：**
-1. 启用两步验证
-2. 生成应用专用密码
-3. 使用应用密码作为 `sender_password`
+#### Gmail
+- **SMTP服务器**: smtp.gmail.com:587 (TLS)
+- **配置步骤**:
+  1. 启用两步验证
+  2. 生成应用专用密码
+  3. 使用应用密码作为 `sender_password`
+
+#### QQ邮箱
+- **SMTP服务器**: smtp.qq.com:587 (TLS)
+- **配置步骤**:
+  1. 登录QQ邮箱
+  2. 设置 → 账户 → 开启SMTP服务
+  3. 获取授权码作为 `sender_password`
+
+#### Outlook
+- **SMTP服务器**: smtp-mail.outlook.com:587 (TLS)
+- **配置步骤**:
+  1. 使用Microsoft账户密码
+  2. 确保账户支持SMTP访问
+
+#### 163邮箱
+- **SMTP服务器**: smtp.163.com:25 或 smtp.163.com:994 (SSL)
+- **配置步骤**:
+  1. 登录163邮箱
+  2. 设置 → POP3/SMTP/IMAP → 开启SMTP服务
+  3. 获取客户端授权密码
 
 #### 飞书通知 (feishu)
 ```json

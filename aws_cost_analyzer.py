@@ -82,6 +82,36 @@ def format_table(df, title=""):
     console.print(table)
     return ""  # 返回空字符串，避免打印None
 
+def get_email_provider_config(provider):
+    """获取邮件服务提供商配置"""
+    providers = {
+        'gmail': {
+            'smtp_server': 'smtp.gmail.com',
+            'smtp_port': 587,
+            'use_tls': True,
+            'description': 'Gmail - 需要应用专用密码'
+        },
+        'qq': {
+            'smtp_server': 'smtp.qq.com',
+            'smtp_port': 587,
+            'use_tls': True,
+            'description': 'QQ邮箱 - 需要开启SMTP服务并获取授权码'
+        },
+        'outlook': {
+            'smtp_server': 'smtp-mail.outlook.com',
+            'smtp_port': 587,
+            'use_tls': True,
+            'description': 'Outlook - 使用账户密码'
+        },
+        '163': {
+            'smtp_server': 'smtp.163.com',
+            'smtp_port': 25,
+            'use_tls': False,
+            'description': '163邮箱 - 需要开启SMTP服务'
+        }
+    }
+    return providers.get(provider, providers['gmail'])
+
 def load_config():
     """加载配置文件"""
     config_file = 'config.json'
@@ -103,6 +133,18 @@ def load_config():
             "schedule": {"enabled": False},
             "aws": {"default_region": "us-east-1", "cost_threshold": 0.01}
         }
+
+def save_config(config):
+    """保存配置文件"""
+    config_file = 'config.json'
+    try:
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        print(f"{Fore.GREEN}✅ 配置文件已保存: {config_file}{Style.RESET_ALL}")
+        return True
+    except Exception as e:
+        print(f"{Fore.RED}❌ 配置文件保存失败: {e}{Style.RESET_ALL}")
+        return False
 
 def send_email_notification(config, subject, body, attachment_path=None):
     """发送邮件通知"""
@@ -1240,6 +1282,7 @@ def print_usage_guide():
     print("  trend         费用趋势分析")
     print("  optimize      费用优化建议")
     print("  config        配置检查")
+    print("  setup         配置向导（邮件、飞书、定时任务）")
     print("  schedule      定时运行分析任务")
     print("  cron-install  安装系统级定时任务")
     print("  cron-uninstall 卸载系统级定时任务")
@@ -1253,6 +1296,25 @@ def print_usage_guide():
     print("📊 输出选项:")
     print("  --output DIR  指定输出目录 (默认: 当前目录)")
     print("  --format FMT  输出格式: txt, html, png, all (默认: all)")
+    print()
+    print("📧 邮件配置选项:")
+    print("  --enable-email        启用邮件通知")
+    print("  --email-provider      邮件服务商 (gmail/qq/outlook/163)")
+    print("  --smtp-server         SMTP服务器地址")
+    print("  --smtp-port           SMTP端口")
+    print("  --sender-email        发送者邮箱")
+    print("  --sender-password     发送者密码/授权码")
+    print("  --recipient-email     接收者邮箱")
+    print()
+    print("📱 飞书配置选项:")
+    print("  --enable-feishu       启用飞书通知")
+    print("  --feishu-webhook      飞书机器人Webhook URL")
+    print("  --feishu-secret       飞书机器人签名密钥")
+    print()
+    print("⏰ 定时任务配置选项:")
+    print("  --enable-schedule     启用定时任务")
+    print("  --schedule-time       执行时间 (HH:MM格式)")
+    print("  --schedule-type       分析类型 (quick/custom)")
     print()
     print("🔑 AWS配置选项:")
     print("  --profile NAME   使用指定的AWS配置文件")
@@ -1273,6 +1335,18 @@ def print_usage_guide():
     print()
     print("  # 配置检查")
     print("  aws_cost_analyzer config")
+    print()
+    print("  # 配置向导")
+    print("  aws_cost_analyzer setup")
+    print()
+    print("  # 命令行配置邮件通知")
+    print("  aws_cost_analyzer setup --enable-email --email-provider gmail --sender-email your@gmail.com --recipient-email admin@company.com")
+    print()
+    print("  # 命令行配置飞书通知")
+    print("  aws_cost_analyzer setup --enable-feishu --feishu-webhook https://open.feishu.cn/open-apis/bot/v2/hook/xxx")
+    print()
+    print("  # 命令行配置定时任务")
+    print("  aws_cost_analyzer setup --enable-schedule --schedule-time 09:00 --schedule-type quick")
     print()
     print("  # 定时运行分析")
     print("  aws_cost_analyzer schedule")
@@ -1303,7 +1377,7 @@ def parse_arguments():
     # 主命令
     parser.add_argument('command', nargs='?', default='help',
                        choices=['quick', 'custom', 'detailed', 'service', 'region', 
-                               'trend', 'optimize', 'config', 'schedule', 'cron-install', 
+                               'trend', 'optimize', 'config', 'setup', 'schedule', 'cron-install', 
                                'cron-uninstall', 'cron-status', 'help'],
                        help='要执行的命令')
     
@@ -1319,6 +1393,37 @@ def parse_arguments():
     parser.add_argument('--format', type=str, default='all',
                        choices=['txt', 'html', 'png', 'all'],
                        help='输出格式 (默认: all)')
+    
+    # 通知配置选项
+    parser.add_argument('--enable-email', action='store_true',
+                       help='启用邮件通知')
+    parser.add_argument('--email-provider', type=str, choices=['gmail', 'qq', 'outlook', '163'],
+                       help='邮件服务提供商')
+    parser.add_argument('--smtp-server', type=str,
+                       help='SMTP服务器地址')
+    parser.add_argument('--smtp-port', type=int,
+                       help='SMTP端口')
+    parser.add_argument('--sender-email', type=str,
+                       help='发送者邮箱')
+    parser.add_argument('--sender-password', type=str,
+                       help='发送者邮箱密码或应用密码')
+    parser.add_argument('--recipient-email', type=str,
+                       help='接收者邮箱')
+    
+    parser.add_argument('--enable-feishu', action='store_true',
+                       help='启用飞书通知')
+    parser.add_argument('--feishu-webhook', type=str,
+                       help='飞书机器人Webhook URL')
+    parser.add_argument('--feishu-secret', type=str,
+                       help='飞书机器人签名密钥')
+    
+    # 定时任务配置选项
+    parser.add_argument('--enable-schedule', action='store_true',
+                       help='启用定时任务')
+    parser.add_argument('--schedule-time', type=str,
+                       help='定时任务执行时间 (HH:MM格式，如09:00)')
+    parser.add_argument('--schedule-type', type=str, choices=['quick', 'custom'],
+                       default='quick', help='定时任务分析类型')
     
     # AWS配置选项
     parser.add_argument('--profile', type=str,
@@ -1369,6 +1474,8 @@ def main():
         optimization_suggestions_cli(analyzer, args)
     elif args.command == 'config':
         config_check_cli(analyzer, args)
+    elif args.command == 'setup':
+        setup_config_cli(analyzer, args)
     elif args.command == 'schedule':
         schedule_analysis_cli(analyzer, args)
     elif args.command == 'cron-install':
@@ -1524,6 +1631,112 @@ def cron_status_cli(analyzer, args):
             
     except Exception as e:
         print(f"{Fore.RED}❌ 查看cron状态时出错: {e}{Style.RESET_ALL}")
+
+def setup_config_cli(analyzer, args):
+    """通过命令行配置系统"""
+    print(f"{Fore.CYAN}🔧 AWS费用分析器配置向导{Style.RESET_ALL}")
+    print("=" * 50)
+    
+    # 加载现有配置
+    config = load_config()
+    
+    # 配置邮件通知
+    if args.enable_email or input("是否配置邮件通知? (y/N): ").strip().lower() == 'y':
+        print(f"\n{Fore.CYAN}📧 配置邮件通知{Style.RESET_ALL}")
+        
+        # 选择邮件服务提供商
+        if args.email_provider:
+            provider = args.email_provider
+        else:
+            print("请选择邮件服务提供商:")
+            print("1. Gmail")
+            print("2. QQ邮箱")
+            print("3. Outlook")
+            print("4. 163邮箱")
+            choice = input("请输入选择 (1-4): ").strip()
+            provider_map = {'1': 'gmail', '2': 'qq', '3': 'outlook', '4': '163'}
+            provider = provider_map.get(choice, 'gmail')
+        
+        provider_config = get_email_provider_config(provider)
+        print(f"选择的服务商: {provider_config['description']}")
+        
+        # 获取邮件配置
+        sender_email = args.sender_email or input("发送者邮箱: ").strip()
+        sender_password = args.sender_password or getpass.getpass("发送者密码/授权码: ")
+        recipient_email = args.recipient_email or input("接收者邮箱: ").strip()
+        
+        # 更新配置
+        config["notifications"]["email"] = {
+            "enabled": True,
+            "smtp_server": args.smtp_server or provider_config['smtp_server'],
+            "smtp_port": args.smtp_port or provider_config['smtp_port'],
+            "sender_email": sender_email,
+            "sender_password": sender_password,
+            "recipient_email": recipient_email,
+            "use_tls": provider_config['use_tls']
+        }
+        
+        print(f"{Fore.GREEN}✅ 邮件通知配置完成{Style.RESET_ALL}")
+    
+    # 配置飞书通知
+    if args.enable_feishu or input("\n是否配置飞书通知? (y/N): ").strip().lower() == 'y':
+        print(f"\n{Fore.CYAN}📱 配置飞书通知{Style.RESET_ALL}")
+        
+        webhook_url = args.feishu_webhook or input("飞书机器人Webhook URL: ").strip()
+        secret = args.feishu_secret or input("飞书机器人签名密钥 (可选): ").strip()
+        
+        config["notifications"]["feishu"] = {
+            "enabled": True,
+            "webhook_url": webhook_url,
+            "secret": secret
+        }
+        
+        print(f"{Fore.GREEN}✅ 飞书通知配置完成{Style.RESET_ALL}")
+    
+    # 配置定时任务
+    if args.enable_schedule or input("\n是否配置定时任务? (y/N): ").strip().lower() == 'y':
+        print(f"\n{Fore.CYAN}⏰ 配置定时任务{Style.RESET_ALL}")
+        
+        schedule_time = args.schedule_time or input("执行时间 (HH:MM格式，如09:00): ").strip()
+        schedule_type = args.schedule_type or input("分析类型 (quick/custom): ").strip()
+        
+        if not schedule_time:
+            schedule_time = "09:00"
+        if not schedule_type:
+            schedule_type = "quick"
+        
+        config["schedule"] = {
+            "enabled": True,
+            "time": schedule_time,
+            "timezone": "Asia/Shanghai",
+            "analysis_type": schedule_type,
+            "auto_install": True,
+            "cron_comment": "AWS Cost Analyzer - Daily Analysis"
+        }
+        
+        print(f"{Fore.GREEN}✅ 定时任务配置完成{Style.RESET_ALL}")
+    
+    # 保存配置
+    if save_config(config):
+        print(f"\n{Fore.GREEN}🎉 配置完成！{Style.RESET_ALL}")
+        
+        # 显示当前配置摘要
+        print(f"\n{Fore.CYAN}📋 当前配置摘要:{Style.RESET_ALL}")
+        if config.get("notifications", {}).get("email", {}).get("enabled"):
+            email_config = config["notifications"]["email"]
+            print(f"📧 邮件通知: {email_config['sender_email']} -> {email_config['recipient_email']}")
+        
+        if config.get("notifications", {}).get("feishu", {}).get("enabled"):
+            print(f"📱 飞书通知: 已启用")
+        
+        if config.get("schedule", {}).get("enabled"):
+            schedule_config = config["schedule"]
+            print(f"⏰ 定时任务: 每天 {schedule_config['time']} ({schedule_config['analysis_type']})")
+        
+        print(f"\n{Fore.CYAN}💡 下一步:{Style.RESET_ALL}")
+        print("1. 运行 'aws_cost_analyzer cron-install' 安装定时任务")
+        print("2. 运行 'aws_cost_analyzer quick' 测试通知功能")
+        print("3. 运行 'aws_cost_analyzer cron-status' 查看定时任务状态")
 
 def get_existing_cron():
     """获取现有的AWS费用分析器cron任务"""

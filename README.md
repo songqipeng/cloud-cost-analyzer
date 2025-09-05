@@ -66,6 +66,7 @@ aws_cost_env\Scripts\activate     # Windows
 - `trend` - 费用趋势分析
 - `optimize` - 费用优化建议
 - `config` - 配置检查
+- `setup` - 配置向导（邮件、飞书、定时任务）
 - `schedule` - 定时运行分析任务
 - `cron-install` - 安装系统级定时任务
 - `cron-uninstall` - 卸载系统级定时任务
@@ -92,6 +93,18 @@ aws_cost_env\Scripts\activate     # Windows
 
 # 配置检查
 ./aws_cost_analyzer.py config
+
+# 配置向导（交互式）
+./aws_cost_analyzer.py setup
+
+# 命令行配置邮件通知
+./aws_cost_analyzer.py setup --enable-email --email-provider gmail --sender-email your@gmail.com --recipient-email admin@company.com
+
+# 命令行配置飞书通知
+./aws_cost_analyzer.py setup --enable-feishu --feishu-webhook https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+
+# 命令行配置定时任务
+./aws_cost_analyzer.py setup --enable-schedule --schedule-time 09:00 --schedule-type quick
 
 # 定时运行分析
 ./aws_cost_analyzer.py schedule
@@ -194,8 +207,36 @@ aws_cost_env\Scripts\activate     # Windows
 
 ## ⚙️ 配置
 
-### 配置文件
+### 配置方式
+
+#### 1. 交互式配置向导（推荐）
+```bash
+./aws_cost_analyzer.py setup
+```
+- 引导式配置邮件、飞书、定时任务
+- 支持多种邮件服务商选择
+- 自动生成配置文件
+
+#### 2. 命令行配置
+```bash
+# 配置邮件通知
+./aws_cost_analyzer.py setup --enable-email --email-provider gmail --sender-email your@gmail.com --recipient-email admin@company.com
+
+# 配置飞书通知
+./aws_cost_analyzer.py setup --enable-feishu --feishu-webhook https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+
+# 配置定时任务
+./aws_cost_analyzer.py setup --enable-schedule --schedule-time 09:00 --schedule-type quick
+```
+
+#### 3. 手动编辑配置文件
 程序使用 `config.json` 进行配置，详细配置说明请参考 [CONFIG.md](CONFIG.md)。
+
+### 支持的邮件服务商
+- **Gmail** - 需要应用专用密码
+- **QQ邮箱** - 需要开启SMTP服务并获取授权码
+- **Outlook** - 使用账户密码
+- **163邮箱** - 需要开启SMTP服务
 
 ### AWS凭证配置
 

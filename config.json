@@ -1,23 +1,23 @@
 {
   "notifications": {
     "email": {
-      "enabled": false,
-      "smtp_server": "smtp.gmail.com",
+      "enabled": true,
+      "smtp_server": "smtp.qq.com",
       "smtp_port": 587,
-      "sender_email": "your-email@gmail.com",
-      "sender_password": "your-app-password",
-      "recipient_email": "recipient@example.com",
+      "sender_email": "5651741@qq.com",
+      "sender_password": "japuhghaxrrkcbde",
+      "recipient_email": "qipeng.song@gmail.com",
       "use_tls": true
     },
     "feishu": {
-      "enabled": false,
-      "webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook-token",
-      "secret": "your-secret-key"
+      "enabled": true,
+      "webhook_url": "",
+      "secret": ""
     }
   },
   "schedule": {
     "enabled": true,
-    "time": "09:00",
+    "time": "10:30",
     "timezone": "Asia/Shanghai",
     "analysis_type": "quick",
     "auto_install": true,
