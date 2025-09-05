@@ -43,18 +43,34 @@ chmod +x aws_cost_analyzer.py
 ./aws_cost_analyzer.py
 ```
 
-### 3. 全局安装（可选）
+### 3. 使用pip安装（推荐）
 ```bash
-sudo cp aws_cost_analyzer.py /usr/local/bin/aws_cost_analyzer
+# 安装依赖
+pip install -r requirements.txt
+
+# 运行程序
+./aws_cost_analyzer.py
 ```
 
-### 4. 使用虚拟环境（推荐）
+### 4. 开发模式安装
+```bash
+# 安装为可编辑包
+pip install -e .
+
+# 全局命令
+aws-cost-analyzer quick
+```
+
+### 5. 使用虚拟环境（推荐）
 ```bash
 # 创建虚拟环境
 python3 -m venv aws_cost_env
 source aws_cost_env/bin/activate  # Linux/Mac
 # 或
 aws_cost_env\Scripts\activate     # Windows
+
+# 安装依赖
+pip install -r requirements.txt
 
 # 运行程序
 ./aws_cost_analyzer.py
@@ -344,46 +360,87 @@ aws_cost_env\Scripts\activate     # Windows
 
 ```
 aws-cost-analyzer/
-├── aws_cost_analyzer.py          # 主程序文件（包含自动依赖安装）
-├── create_beautiful_charts.py    # 美观PNG图表生成器
-├── create_beautiful_dashboard.py # 美观HTML仪表板生成器
-├── config.json                   # 配置文件（需要用户创建）
-├── config.example.json           # 配置文件示例
+├── src/                          # 源代码目录
+│   └── aws_cost_analyzer/        # 主包目录
+│       ├── __init__.py
+│       ├── core/                 # 核心模块
+│       │   ├── __init__.py
+│       │   ├── client.py         # AWS客户端封装
+│       │   ├── analyzer.py       # 核心分析逻辑
+│       │   └── data_processor.py # 数据处理
+│       ├── notifications/        # 通知模块
+│       │   ├── __init__.py
+│       │   ├── email.py          # 邮件通知
+│       │   ├── feishu.py         # 飞书通知
+│       │   └── manager.py        # 通知管理器
+│       ├── reports/              # 报告生成模块
+│       │   ├── __init__.py
+│       │   ├── text_report.py    # 文本报告
+│       │   └── html_report.py    # HTML报告
+│       └── utils/                # 工具模块
+│           ├── __init__.py
+│           ├── config.py         # 配置管理
+│           └── validators.py     # 数据验证
+├── aws_cost_analyzer.py          # 主程序入口
+├── aws_cost_analyzer_old.py      # 原始版本备份
+├── config.json                   # 配置文件（自动生成）
+├── config.example.json           # 配置示例文件
 ├── CONFIG.md                     # 配置说明文档
-└── README.md                     # 项目说明
+├── requirements.txt              # Python依赖包
+├── setup.py                      # 包安装配置
+├── README.md                     # 项目说明文档
+└── .gitignore                    # Git忽略文件
 ```
 
 ### 📋 文件说明
 
-- **`aws_cost_analyzer.py`** - 主程序文件，包含所有核心功能：
-  - AWS费用数据获取和分析
-  - 命令行参数解析
-  - 自动依赖包安装
-  - 调用图表和仪表板生成器
+#### 核心模块
+- **`src/aws_cost_analyzer/core/`** - 核心功能模块
+  - `client.py` - AWS客户端封装，处理API调用和错误处理
+  - `analyzer.py` - 核心分析逻辑，统一的分析接口
+  - `data_processor.py` - 数据处理，费用统计和分析
 
-- **`create_beautiful_charts.py`** - PNG图表生成器：
-  - 生成专业的PNG格式图表
-  - 支持服务、区域、趋势等多种图表类型
-  - 使用现代化设计风格和英文标签
+#### 通知模块
+- **`src/aws_cost_analyzer/notifications/`** - 通知功能模块
+  - `email.py` - 邮件通知，支持多种邮件服务商
+  - `feishu.py` - 飞书通知，支持webhook消息
+  - `manager.py` - 通知管理器，统一管理所有通知
 
-- **`create_beautiful_dashboard.py`** - HTML仪表板生成器：
-  - 生成交互式HTML仪表板
-  - 响应式设计，支持各种设备
-  - 深色主题，现代化UI设计
+#### 报告模块
+- **`src/aws_cost_analyzer/reports/`** - 报告生成模块
+  - `text_report.py` - 文本报告生成器
+  - `html_report.py` - HTML报告生成器，美观的网页报告
 
-- **`config.json`** - 主配置文件：
-  - 邮件通知设置
-  - 飞书通知设置
+#### 工具模块
+- **`src/aws_cost_analyzer/utils/`** - 工具和配置模块
+  - `config.py` - 配置管理，统一的配置接口
+  - `validators.py` - 数据验证，输入验证和错误检查
+
+#### 主程序
+- **`aws_cost_analyzer.py`** - 主程序入口
+  - 命令行界面
+  - 自动依赖安装
+  - 模块化架构的入口点
+
+#### 配置文件
+- **`config.json`** - 配置文件（自动生成）
+  - 邮件通知配置
+  - 飞书通知配置
   - 定时任务配置
-  - AWS相关配置
+  - AWS配置
 
-- **`config.example.json`** - 配置文件示例：
-  - 包含所有配置项的示例值
-  - 用户可复制此文件创建自己的配置
+- **`config.example.json`** - 配置示例文件
+  - 提供配置模板
+  - 包含所有可配置项的示例
 
-- **`CONFIG.md`** - 配置说明文档：
-  - 详细的配置项说明
-  - 常见问题解决方案
+- **`CONFIG.md`** - 配置说明文档
+  - 详细的配置说明
+  - 各种配置方式的使用方法
+  - 常见问题解答
+
+#### 安装配置
+- **`requirements.txt`** - Python依赖包列表
+- **`setup.py`** - 包安装配置，支持pip安装
   - 安全注意事项
 
 ## ⚠️ 注意事项
