@@ -64,6 +64,17 @@ Thumbs.db
 *.csv
 *.xlsx
 
+# 测试和缓存文件
+.pytest_cache/
+.coverage
+htmlcov/
+.claude/
+
+# 生成的报告文件
+cost_analysis_report_*
+custom_analysis_*
+quick_analysis_report*
+
 # AWS 相关
 .aws/
 aws-credentials.json
