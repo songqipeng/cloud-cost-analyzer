@@ -4,7 +4,7 @@
 import pytest
 import os
 from unittest.mock import patch, MagicMock
-from src.aws_cost_analyzer.core.multi_cloud_analyzer import MultiCloudAnalyzer
+from src.cloud_cost_analyzer.core.multi_cloud_analyzer import MultiCloudAnalyzer
 
 
 class TestIntegration:
@@ -21,8 +21,8 @@ class TestIntegration:
         assert hasattr(analyzer, 'volcengine_client')
     
     @pytest.mark.integration
-    @patch('src.aws_cost_analyzer.core.client.AWSClient.test_connection')
-    @patch('src.aws_cost_analyzer.core.aliyun_client.AliyunClient.test_connection')
+    @patch('src.cloud_cost_analyzer.core.client.AWSClient.test_connection')
+    @patch('src.cloud_cost_analyzer.core.aliyun_client.AliyunClient.test_connection')
     def test_connection_testing(self, mock_aliyun, mock_aws):
         """测试连接测试功能"""
         mock_aws.return_value = (True, "AWS连接成功")
@@ -39,7 +39,7 @@ class TestIntegration:
     @pytest.mark.slow
     def test_config_loading(self):
         """测试配置加载"""
-        from src.aws_cost_analyzer.utils.config import Config
+        from src.cloud_cost_analyzer.utils.config import Config
         
         # 测试默认配置
         default_config = Config.get_default_config()

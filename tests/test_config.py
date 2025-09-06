@@ -5,7 +5,7 @@ import pytest
 import os
 import tempfile
 import json
-from src.aws_cost_analyzer.utils.config import Config
+from src.cloud_cost_analyzer.utils.config import Config
 
 
 class TestConfig:

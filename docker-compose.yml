@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  # 主应用服务
+  cloud-cost-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        VCS_REF: ${VCS_REF:-unknown}
+    image: cloud-cost-analyzer:latest
+    container_name: cloud-cost-analyzer
+    restart: unless-stopped
+    environment:
+      # AWS配置
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      
+      # 阿里云配置
+      - ALIBABA_CLOUD_ACCESS_KEY_ID=${ALIBABA_CLOUD_ACCESS_KEY_ID}
+      - ALIBABA_CLOUD_ACCESS_KEY_SECRET=${ALIBABA_CLOUD_ACCESS_KEY_SECRET}
+      
+      # 腾讯云配置
+      - TENCENTCLOUD_SECRET_ID=${TENCENTCLOUD_SECRET_ID}
+      - TENCENTCLOUD_SECRET_KEY=${TENCENTCLOUD_SECRET_KEY}
+      
+      # 火山云配置
+      - VOLCENGINE_ACCESS_KEY_ID=${VOLCENGINE_ACCESS_KEY_ID}
+      - VOLCENGINE_SECRET_ACCESS_KEY=${VOLCENGINE_SECRET_ACCESS_KEY}
+      
+      # Redis配置
+      - REDIS_URL=redis://redis:6379/0
+      
+      # 应用配置
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+      
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+      - cache_data:/app/.cache
+    depends_on:
+      - redis
+    networks:
+      - cloud-cost-network
+    command: ["config"]  # 默认检查配置
+
+  # Redis缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: cloud-cost-redis
+    restart: unless-stopped
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - cloud-cost-network
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    command: >
+      sh -c "
+      if [ -n \"$$REDIS_PASSWORD\" ]; then
+        redis-server --requirepass $$REDIS_PASSWORD
+      else
+        redis-server
+      fi
+      "
+
+  # 定时任务服务
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: cloud-cost-analyzer:latest
+    container_name: cloud-cost-scheduler
+    restart: unless-stopped
+    environment:
+      # 继承主服务的环境变量
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - ALIBABA_CLOUD_ACCESS_KEY_ID=${ALIBABA_CLOUD_ACCESS_KEY_ID}
+      - ALIBABA_CLOUD_ACCESS_KEY_SECRET=${ALIBABA_CLOUD_ACCESS_KEY_SECRET}
+      - TENCENTCLOUD_SECRET_ID=${TENCENTCLOUD_SECRET_ID}
+      - TENCENTCLOUD_SECRET_KEY=${TENCENTCLOUD_SECRET_KEY}
+      - VOLCENGINE_ACCESS_KEY_ID=${VOLCENGINE_ACCESS_KEY_ID}
+      - VOLCENGINE_SECRET_ACCESS_KEY=${VOLCENGINE_SECRET_ACCESS_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+      - cache_data:/app/.cache
+    depends_on:
+      - redis
+    networks:
+      - cloud-cost-network
+    command: >
+      sh -c "
+      echo '设置定时任务: 每天早上8点运行多云分析'
+      echo '0 8 * * * cd /app && python cloud_cost_analyzer.py multi-cloud >> /app/logs/cron.log 2>&1' | crontab -
+      crond -f
+      "
+
+  # 开发环境服务
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    image: cloud-cost-analyzer:dev
+    container_name: cloud-cost-dev
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - ALIBABA_CLOUD_ACCESS_KEY_ID=${ALIBABA_CLOUD_ACCESS_KEY_ID}
+      - ALIBABA_CLOUD_ACCESS_KEY_SECRET=${ALIBABA_CLOUD_ACCESS_KEY_SECRET}
+      - TENCENTCLOUD_SECRET_ID=${TENCENTCLOUD_SECRET_ID}
+      - TENCENTCLOUD_SECRET_KEY=${TENCENTCLOUD_SECRET_KEY}
+      - VOLCENGINE_ACCESS_KEY_ID=${VOLCENGINE_ACCESS_KEY_ID}
+      - VOLCENGINE_SECRET_ACCESS_KEY=${VOLCENGINE_SECRET_ACCESS_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+      - cache_data:/app/.cache
+    depends_on:
+      - redis
+    networks:
+      - cloud-cost-network
+    ports:
+      - "8080:8080"  # 如果将来添加Web界面
+    profiles:
+      - dev
+
+volumes:
+  redis_data:
+    driver: local
+  cache_data:
+    driver: local
+
+networks:
+  cloud-cost-network:
+    driver: bridge

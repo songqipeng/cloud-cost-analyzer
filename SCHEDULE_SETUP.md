@@ -8,14 +8,14 @@
 
 - **执行时间**: 每天早上 8:00 AM
 - **时区**: Asia/Shanghai (上海时间)
-- **执行命令**: `python3 aws_cost_analyzer.py quick`
+- **执行命令**: `python3 cloud_cost_analyzer.py quick`
 - **日志文件**: `/Users/songqipeng/learnpython/aws-cost-analyzer/cron.log`
 
 ### 📋 Cron任务配置
 
 ```bash
 # AWS Cost Analyzer - Daily Analysis at 8:00 AM
-0 8 * * * cd /Users/songqipeng/learnpython/aws-cost-analyzer && /opt/homebrew/bin/python3 aws_cost_analyzer.py quick >> /Users/songqipeng/learnpython/aws-cost-analyzer/cron.log 2>&1
+0 8 * * * cd /Users/songqipeng/learnpython/aws-cost-analyzer && /opt/homebrew/bin/python3 cloud_cost_analyzer.py quick >> /Users/songqipeng/learnpython/aws-cost-analyzer/cron.log 2>&1
 ```
 
 ### 🛠️ 管理命令

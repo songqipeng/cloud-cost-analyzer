@@ -23,7 +23,7 @@ class Logger:
     
     def _setup_logger(self) -> None:
         """设置日志器"""
-        self._logger = logging.getLogger('aws_cost_analyzer')
+        self._logger = logging.getLogger('cloud_cost_analyzer')
         self._logger.setLevel(logging.INFO)
         
         # 避免重复添加处理器

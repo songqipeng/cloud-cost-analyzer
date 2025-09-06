@@ -14,7 +14,7 @@
 
 ### 1. 交互式配置向导（推荐）
 ```bash
-./aws_cost_analyzer.py setup
+./cloud_cost_analyzer.py setup
 ```
 - 引导式配置，用户友好
 - 支持多种邮件服务商选择
@@ -23,13 +23,13 @@
 ### 2. 命令行配置
 ```bash
 # 配置邮件通知
-./aws_cost_analyzer.py setup --enable-email --email-provider gmail --sender-email your@gmail.com --recipient-email admin@company.com
+./cloud_cost_analyzer.py setup --enable-email --email-provider gmail --sender-email your@gmail.com --recipient-email admin@company.com
 
 # 配置飞书通知
-./aws_cost_analyzer.py setup --enable-feishu --feishu-webhook https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+./cloud_cost_analyzer.py setup --enable-feishu --feishu-webhook https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 
 # 配置定时任务
-./aws_cost_analyzer.py setup --enable-schedule --schedule-time 09:00 --schedule-type quick
+./cloud_cost_analyzer.py setup --enable-schedule --schedule-time 09:00 --schedule-type quick
 ```
 
 ### 3. 手动编辑配置文件
@@ -189,16 +189,16 @@ cp config.example.json config.json
 **安装和管理定时任务：**
 ```bash
 # 安装系统级定时任务
-./aws_cost_analyzer.py cron-install
+./cloud_cost_analyzer.py cron-install
 
 # 查看定时任务状态
-./aws_cost_analyzer.py cron-status
+./cloud_cost_analyzer.py cron-status
 
 # 卸载定时任务
-./aws_cost_analyzer.py cron-uninstall
+./cloud_cost_analyzer.py cron-uninstall
 
 # 自动安装（推荐，第一次运行时）
-./aws_cost_analyzer.py schedule
+./cloud_cost_analyzer.py schedule
 ```
 
 ## 📧 通知内容格式

@@ -3,7 +3,7 @@
 """
 import pytest
 from datetime import datetime
-from src.aws_cost_analyzer.utils.validators import DataValidator
+from src.cloud_cost_analyzer.utils.validators import DataValidator
 
 
 class TestDataValidator:

@@ -14,12 +14,12 @@ from dateutil.relativedelta import relativedelta
 # 添加src目录到Python路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from aws_cost_analyzer.core.analyzer import AWSCostAnalyzer
-from aws_cost_analyzer.core.multi_cloud_analyzer import MultiCloudAnalyzer
-from aws_cost_analyzer.utils.config import Config
-from aws_cost_analyzer.utils.validators import DataValidator
-from aws_cost_analyzer.utils.logger import get_logger
-from aws_cost_analyzer.utils.exceptions import AWSAnalyzerError, AWSConnectionError
+from cloud_cost_analyzer.core.analyzer import AWSCostAnalyzer
+from cloud_cost_analyzer.core.multi_cloud_analyzer import MultiCloudAnalyzer
+from cloud_cost_analyzer.utils.config import Config
+from cloud_cost_analyzer.utils.validators import DataValidator
+from cloud_cost_analyzer.utils.logger import get_logger
+from cloud_cost_analyzer.utils.exceptions import AWSAnalyzerError, AWSConnectionError
 from colorama import init, Fore, Style
 
 logger = get_logger()
@@ -95,33 +95,75 @@ def setup_aws_credentials():
     return False
 
 
-def quick_analysis_cli(analyzer: AWSCostAnalyzer, args) -> None:
-    """命令行快速分析"""
+def quick_analysis_cli(args) -> None:
+    """快速分析 - 自动选择第一个可用的云平台"""
     try:
-        # 分析费用数据 - 使用新的增强分析接口
-        analysis_result = analyzer.analyze_costs(
-            include_resource_details=True,
-            enable_optimization_analysis=True
-        )
+        # 创建多云分析器
+        multi_analyzer = MultiCloudAnalyzer()
         
-        # 检查分析结果
-        if 'error' in analysis_result:
-            print(f"{Fore.RED}{analysis_result['error']}{Style.RESET_ALL}")
+        # 检查所有云平台连接状态
+        connections = multi_analyzer.test_connections()
+        
+        # 找到第一个可用的云平台
+        available_provider = None
+        for provider, (is_connected, message) in connections.items():
+            if is_connected:
+                available_provider = provider
+                break
+        
+        if not available_provider:
+            print(f"{Fore.RED}❌ 没有可用的云平台连接{Style.RESET_ALL}")
+            print("请配置至少一个云平台的凭证，参考：python cloud_cost_analyzer.py help")
             return
         
+        provider_names = {
+            'aws': 'AWS',
+            'aliyun': '阿里云',
+            'tencent': '腾讯云',
+            'volcengine': '火山云'
+        }
+        provider_name = provider_names.get(available_provider, available_provider)
+        
+        print(f"{Fore.CYAN}🚀 使用 {provider_name} 进行快速分析（过去1年）{Style.RESET_ALL}")
+        
+        # 根据云平台类型创建对应的分析器
+        if available_provider == 'aws':
+            analyzer = AWSCostAnalyzer()
+            analysis_result = analyzer.analyze_costs()
+        else:
+            # 使用多云分析器分析单个平台
+            raw_data, service_costs, region_costs = multi_analyzer.analyze_single_provider_costs(available_provider)
+            if not raw_data:
+                print(f"{Fore.RED}没有费用数据可分析{Style.RESET_ALL}")
+                return
+                
+            # 打印分析结果
+            multi_analyzer.print_provider_analysis(available_provider, raw_data, service_costs, region_costs)
+            
+            # 生成报告
+            if args.format in ['txt', 'all']:
+                generated_files = multi_analyzer.generate_single_provider_reports(
+                    available_provider, raw_data, service_costs, region_costs, args.output, ['txt']
+                )
+                if 'txt' in generated_files:
+                    print(f"{Fore.GREEN}✅ 报告已保存: {generated_files['txt']}{Style.RESET_ALL}")
+            
+            if args.format in ['html', 'all']:
+                generated_files = multi_analyzer.generate_single_provider_reports(
+                    available_provider, raw_data, service_costs, region_costs, args.output, ['html']
+                )
+                if 'html' in generated_files:
+                    print(f"{Fore.GREEN}✅ 报告已保存: {generated_files['html']}{Style.RESET_ALL}")
+            return
+        
+        # AWS 特殊处理（向后兼容）
         df = analysis_result.get('data')
         if df is None or df.empty:
             print(f"{Fore.RED}没有费用数据可分析{Style.RESET_ALL}")
             return
         
-        # 打印增强分析结果
+        # 打印分析结果
         analyzer.print_enhanced_analysis_results(analysis_result)
-        
-        # 发送通知 (兼容原接口)
-        service_costs = analysis_result.get('service_costs')
-        region_costs = analysis_result.get('region_costs')
-        if analyzer.notification_manager and service_costs is not None and region_costs is not None:
-            analyzer.send_notifications(df, service_costs, region_costs)
         
         # 生成报告
         if args.format in ['txt', 'all']:
@@ -142,7 +184,7 @@ def custom_analysis_cli(analyzer: AWSCostAnalyzer, args) -> None:
     """命令行自定义分析"""
     if not args.start or not args.end:
         print(f"{Fore.RED}❌ 自定义分析需要指定 --start 和 --end 参数{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}示例: python aws_cost_analyzer.py custom --start 2024-01-01 --end 2024-12-31{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}示例: python cloud_cost_analyzer.py custom --start 2024-01-01 --end 2024-12-31{Style.RESET_ALL}")
         return
     
     # 验证日期格式
@@ -276,11 +318,11 @@ def print_usage_guide():
     print("=" * 80)
     print()
     print(f"{Fore.YELLOW}📋 基本用法:{Style.RESET_ALL}")
-    print("  aws_cost_analyzer [命令] [选项]")
+    print("  cloud_cost_analyzer [命令] [选项]")
     print()
     print(f"{Fore.YELLOW}🔧 可用命令:{Style.RESET_ALL}")
-    print("  quick         快速分析过去1年的AWS费用")
-    print("  custom        自定义时间范围AWS分析")
+    print("  quick         快速分析过去1年费用（自动选择第一个可用云平台）")
+    print("  custom        自定义时间范围分析")
     print("  multi-cloud   多云费用分析 (AWS + 阿里云 + 腾讯云 + 火山云)")
     print("  config        配置检查")
     print("  help          显示此帮助信息")
@@ -295,16 +337,16 @@ def print_usage_guide():
     print()
     print(f"{Fore.YELLOW}💡 使用示例:{Style.RESET_ALL}")
     print("  # 快速分析AWS费用")
-    print("  aws_cost_analyzer quick")
+    print("  cloud_cost_analyzer quick")
     print()
     print("  # 自定义时间范围AWS分析")
-    print("  aws_cost_analyzer custom --start 2024-01-01 --end 2024-12-31")
+    print("  cloud_cost_analyzer custom --start 2024-01-01 --end 2024-12-31")
     print()
     print("  # 多云费用分析 (AWS + 阿里云 + 腾讯云 + 火山云)")
     print("  cloud_cost_analyzer multi-cloud")
     print()
     print("  # 配置检查")
-    print("  aws_cost_analyzer config")
+    print("  cloud_cost_analyzer config")
     print()
     print(f"{Fore.YELLOW}⚠️  注意事项:{Style.RESET_ALL}")
     print("  - 首次使用需要配置AWS凭证")
@@ -312,8 +354,8 @@ def print_usage_guide():
     print("  - 费用数据可能有1-2天延迟")
     print()
     print(f"{Fore.YELLOW}📞 获取帮助:{Style.RESET_ALL}")
-    print("  aws_cost_analyzer help")
-    print("  aws_cost_analyzer [命令] --help")
+    print("  cloud_cost_analyzer help")
+    print("  cloud_cost_analyzer [命令] --help")
     print("=" * 80)
 
 
@@ -338,7 +380,7 @@ def main():
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
     
     # 快速分析命令
-    quick_parser = subparsers.add_parser('quick', help='快速分析过去1年的费用')
+    quick_parser = subparsers.add_parser('quick', help='快速分析过去1年的费用（自动选择第一个可用的云平台）')
     quick_parser.add_argument('--output', default='.', help='输出目录')
     quick_parser.add_argument('--format', choices=['txt', 'html', 'all'], default='all', help='输出格式')
     
@@ -378,7 +420,7 @@ def main():
         
         # 执行相应命令
         if args.command == 'quick':
-            quick_analysis_cli(analyzer, args)
+            quick_analysis_cli(args)
         elif args.command == 'custom':
             custom_analysis_cli(analyzer, args)
         elif args.command == 'multi-cloud':

@@ -1,0 +1,79 @@
+# Git相关
+.git
+.gitignore
+.gitattributes
+
+# Python相关
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache
+htmlcov
+.coverage
+coverage.xml
+.tox
+.nox
+venv
+env
+.venv
+.env
+*.egg-info
+dist
+build
+
+# IDE和编辑器
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 项目特定
+*.log
+cron.log
+bandit-report.json
+*.txt
+*.html
+reports/
+logs/
+.cache/
+.pytest_cache/
+
+# 配置文件（包含敏感信息）
+config.json
+.env
+
+# 临时文件
+tmp/
+temp/
+
+# 文档
+docs/
+*.md
+!README.md
+
+# 测试和开发文件
+tests/
+.pre-commit-config.yaml
+
+# CI/CD
+.github/
+azure-pipelines.yml
+Jenkinsfile
+
+# Docker相关
+Dockerfile.dev
+docker-compose.override.yml
+docker-compose.*.yml
+
+# 大文件
+*.zip
+*.tar.gz
+*.rar

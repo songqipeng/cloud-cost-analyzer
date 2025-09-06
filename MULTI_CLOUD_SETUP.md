@@ -52,13 +52,13 @@ export ALIBABA_CLOUD_ACCESS_KEY_SECRET="your_access_key_secret"
 
 ```bash
 # 多云费用分析
-python3 aws_cost_analyzer.py multi-cloud
+python3 cloud_cost_analyzer.py multi-cloud
 
 # 只生成文本报告
-python3 aws_cost_analyzer.py multi-cloud --format txt
+python3 cloud_cost_analyzer.py multi-cloud --format txt
 
 # 指定输出目录
-python3 aws_cost_analyzer.py multi-cloud --output ./reports
+python3 cloud_cost_analyzer.py multi-cloud --output ./reports
 ```
 
 ## 📋 可用命令
@@ -67,20 +67,20 @@ python3 aws_cost_analyzer.py multi-cloud --output ./reports
 
 ```bash
 # AWS快速分析
-python3 aws_cost_analyzer.py quick
+python3 cloud_cost_analyzer.py quick
 
 # AWS自定义时间范围分析
-python3 aws_cost_analyzer.py custom --start 2024-01-01 --end 2024-12-31
+python3 cloud_cost_analyzer.py custom --start 2024-01-01 --end 2024-12-31
 ```
 
 ### 新增命令（多云）
 
 ```bash
 # 多云费用分析
-python3 aws_cost_analyzer.py multi-cloud
+python3 cloud_cost_analyzer.py multi-cloud
 
 # 配置检查（包含AWS和阿里云连接测试）
-python3 aws_cost_analyzer.py config
+python3 cloud_cost_analyzer.py config
 ```
 
 ## ⚙️ 配置详解
@@ -234,10 +234,10 @@ python3 aws_cost_analyzer.py config
 
 ```bash
 # 检查连接状态
-python3 aws_cost_analyzer.py config
+python3 cloud_cost_analyzer.py config
 
 # 查看详细日志
-python3 aws_cost_analyzer.py multi-cloud --format txt 2>&1 | tee debug.log
+python3 cloud_cost_analyzer.py multi-cloud --format txt 2>&1 | tee debug.log
 ```
 
 ## 🕐 定时任务
@@ -251,7 +251,7 @@ python3 aws_cost_analyzer.py multi-cloud --format txt 2>&1 | tee debug.log
 crontab -e
 
 # 将原来的命令改为多云分析
-0 8 * * * cd /Users/songqipeng/learnpython/aws-cost-analyzer && /opt/homebrew/bin/python3 aws_cost_analyzer.py multi-cloud >> /Users/songqipeng/learnpython/aws-cost-analyzer/cron.log 2>&1
+0 8 * * * cd /Users/songqipeng/learnpython/aws-cost-analyzer && /opt/homebrew/bin/python3 cloud_cost_analyzer.py multi-cloud >> /Users/songqipeng/learnpython/aws-cost-analyzer/cron.log 2>&1
 ```
 
 ### 使用管理脚本

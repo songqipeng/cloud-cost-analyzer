@@ -485,7 +485,7 @@ python3 cloud_cost_analyzer.py config 2>&1 | tee debug.log
 
 # 测试单个平台连接
 python3 -c "
-from src.aws_cost_analyzer.core.aliyun_client import AliyunClient
+from src.cloud_cost_analyzer.core.aliyun_client import AliyunClient
 client = AliyunClient()
 print(client.test_connection())
 "

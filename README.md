@@ -434,7 +434,7 @@ crontab -e
 
 # 测试单个平台连接
 python3 -c "
-from src.aws_cost_analyzer.core.aliyun_client import AliyunClient
+from src.cloud_cost_analyzer.core.aliyun_client import AliyunClient
 client = AliyunClient()
 print(client.test_connection())
 "
@@ -468,7 +468,7 @@ cloud-cost-analyzer/
 ├── README.md                        # 项目说明文档
 ├── manage_schedule.sh               # 定时任务管理脚本
 ├── src/                            # 源代码目录
-│   └── aws_cost_analyzer/          # 主包目录
+│   └── cloud_cost_analyzer/          # 主包目录
 │       ├── core/                   # 核心模块
 │       │   ├── client.py           # AWS客户端
 │       │   ├── aliyun_client.py    # 阿里云客户端
