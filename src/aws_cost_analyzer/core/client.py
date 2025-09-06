@@ -52,7 +52,8 @@ class AWSClient:
         start_date: str,
         end_date: str,
         granularity: str = 'MONTHLY',
-        group_by: Optional[List[Dict[str, str]]] = None
+        group_by: Optional[List[Dict[str, str]]] = None,
+        include_resource_details: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
         获取费用和使用情况数据
@@ -62,6 +63,7 @@ class AWSClient:
             end_date: 结束日期 (YYYY-MM-DD)
             granularity: 数据粒度 (DAILY, MONTHLY)
             group_by: 分组维度
+            include_resource_details: 是否包含资源详细信息
             
         Returns:
             费用数据字典或None
@@ -73,10 +75,18 @@ class AWSClient:
         
         # 默认分组
         if group_by is None:
-            group_by = [
-                {'Type': 'DIMENSION', 'Key': 'SERVICE'},
-                {'Type': 'DIMENSION', 'Key': 'REGION'}
-            ]
+            if include_resource_details:
+                # 资源级别分析：包含资源ID维度
+                group_by = [
+                    {'Type': 'DIMENSION', 'Key': 'SERVICE'},
+                    {'Type': 'DIMENSION', 'Key': 'REGION'},
+                    {'Type': 'DIMENSION', 'Key': 'RESOURCE_ID'}
+                ]
+            else:
+                group_by = [
+                    {'Type': 'DIMENSION', 'Key': 'SERVICE'},
+                    {'Type': 'DIMENSION', 'Key': 'REGION'}
+                ]
         
         try:
             response = self.ce_client.get_cost_and_usage(
@@ -142,6 +152,97 @@ class AWSClient:
                     raise e
         
         return None
+    
+    def get_cost_by_resource(
+        self,
+        start_date: str,
+        end_date: str,
+        service_filter: Optional[str] = None,
+        granularity: str = 'DAILY'
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取资源级别的费用分析数据
+        
+        Args:
+            start_date: 开始日期
+            end_date: 结束日期 
+            service_filter: 服务过滤器
+            granularity: 数据粒度
+            
+        Returns:
+            资源级费用数据
+        """
+        group_by = [
+            {'Type': 'DIMENSION', 'Key': 'SERVICE'},
+            {'Type': 'DIMENSION', 'Key': 'RESOURCE_ID'}
+        ]
+        
+        # 添加服务过滤
+        filter_expression = None
+        if service_filter:
+            filter_expression = {
+                'Dimensions': {
+                    'Key': 'SERVICE',
+                    'Values': [service_filter],
+                    'MatchOptions': ['EQUALS']
+                }
+            }
+        
+        try:
+            params = {
+                'TimePeriod': {
+                    'Start': start_date,
+                    'End': end_date
+                },
+                'Granularity': granularity,
+                'Metrics': ['UnblendedCost', 'UsageQuantity'],
+                'GroupBy': group_by
+            }
+            
+            if filter_expression:
+                params['Filter'] = filter_expression
+                
+            response = self.ce_client.get_cost_and_usage(**params)
+            return response
+        except Exception as e:
+            logger.error(f"获取资源级费用数据失败: {e}")
+            raise AWSConnectionError(f"获取资源级费用数据失败: {e}")
+    
+    def get_cost_by_tags(
+        self,
+        start_date: str,
+        end_date: str,
+        tag_key: str,
+        granularity: str = 'MONTHLY'
+    ) -> Optional[Dict[str, Any]]:
+        """
+        按标签获取费用数据
+        
+        Args:
+            start_date: 开始日期
+            end_date: 结束日期
+            tag_key: 标签键名
+            granularity: 数据粒度
+            
+        Returns:
+            按标签分组的费用数据
+        """
+        try:
+            response = self.ce_client.get_cost_and_usage(
+                TimePeriod={
+                    'Start': start_date,
+                    'End': end_date
+                },
+                Granularity=granularity,
+                Metrics=['UnblendedCost'],
+                GroupBy=[
+                    {'Type': 'TAG', 'Key': tag_key}
+                ]
+            )
+            return response
+        except Exception as e:
+            logger.error(f"获取标签费用数据失败: {e}")
+            raise AWSConnectionError(f"获取标签费用数据失败: {e}")
     
     def get_account_info(self) -> Dict[str, Any]:
         """获取账户信息"""
