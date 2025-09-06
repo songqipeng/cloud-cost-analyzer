@@ -1,205 +1,201 @@
 """
-异步分析器模块
+Async analyzer module
 """
 import asyncio
-import aiohttp
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
+import pandas as pd
 
 from .multi_cloud_analyzer import MultiCloudAnalyzer
-from ..utils.progress import CloudAnalysisProgress
+from .async_clients import (
+    AsyncAWSClient,
+    AsyncAliyunClient,
+    AsyncTencentClient,
+    AsyncVolcengineClient,
+)
 from ..utils.logger import get_logger
 
 logger = get_logger()
 
 
 class AsyncMultiCloudAnalyzer(MultiCloudAnalyzer):
-    """异步多云分析器"""
-    
-    def __init__(self, max_concurrent: int = 4, **kwargs):
+    """Asynchronous multi-cloud analyzer"""
+
+    def __init__(self, max_concurrent: int = 5, **kwargs):
         super().__init__(**kwargs)
         self.max_concurrent = max_concurrent
         self.executor = ThreadPoolExecutor(max_workers=max_concurrent)
-    
+
+        # Initialize async client wrappers
+        self.async_aws_client = AsyncAWSClient(self.aws_client, self.executor)
+        self.async_aliyun_client = AsyncAliyunClient(self.aliyun_client, self.executor)
+        self.async_tencent_client = AsyncTencentClient(self.tencent_client, self.executor)
+        self.async_volcengine_client = AsyncVolcengineClient(self.volcengine_client, self.executor)
+
+        self.provider_map = {
+            "aws": {
+                "client": self.async_aws_client,
+                "processor": self.aws_data_processor,
+            },
+            "aliyun": {
+                "client": self.async_aliyun_client,
+                "processor": self.aliyun_data_processor,
+            },
+            "tencent": {
+                "client": self.async_tencent_client,
+                "processor": self.tencent_data_processor,
+            },
+            "volcengine": {
+                "client": self.async_volcengine_client,
+                "processor": self.volcengine_data_processor,
+            },
+        }
+
     async def analyze_multi_cloud_costs_async(
-        self, 
+        self,
         start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        end_date: Optional[str] = None,
+        granularity: str = "MONTHLY",
     ) -> Dict[str, Any]:
-        """异步分析多云费用"""
+        """Asynchronously analyze multi-cloud costs"""
         if not start_date or not end_date:
-            end_date = datetime.now().strftime('%Y-%m-%d')
-            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-        
-        # 获取启用的云平台
-        enabled_providers = self._get_enabled_providers()
-        
-        # 创建异步任务
-        tasks = []
-        for provider in enabled_providers:
-            task = self._analyze_provider_async(provider, start_date, end_date)
-            tasks.append(task)
-        
-        # 并发执行
+            end_date = datetime.now().strftime("%Y-%m-%d")
+            start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+        enabled_providers = await self._get_enabled_providers_async()
+        if not enabled_providers:
+            logger.warning("No cloud providers are enabled or connected.")
+            return self._prepare_empty_results()
+
+        tasks = [
+            self._analyze_provider_async(provider, start_date, end_date, granularity)
+            for provider in enabled_providers
+        ]
+
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # 处理结果
         return self._process_async_results(results, enabled_providers)
-    
+
     async def _analyze_provider_async(
-        self, 
-        provider: str, 
-        start_date: str, 
-        end_date: str
+        self, provider: str, start_date: str, end_date: str, granularity: str
     ) -> Dict[str, Any]:
-        """异步分析单个云平台"""
+        """Asynchronously analyze a single cloud provider."""
+        logger.info(f"Starting async analysis for {provider}...")
         try:
-            # 在线程池中执行同步操作
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                self.executor,
-                self._analyze_provider_sync,
-                provider,
-                start_date,
-                end_date
+            provider_info = self.provider_map[provider]
+            client = provider_info["client"]
+            processor = provider_info["processor"]
+
+            # 1. Asynchronously fetch data
+            cost_data = await client.get_cost_and_usage_with_retry(
+                start_date, end_date, granularity
             )
-            return result
+            if not cost_data:
+                logger.warning(f"No cost data returned for {provider}.")
+                return {"provider": provider, "data": pd.DataFrame()}
+
+            # 2. Process data (can be CPU bound, so run in executor)
+            loop = asyncio.get_running_loop()
+            processed_df = await loop.run_in_executor(
+                self.executor, processor.process, cost_data
+            )
+
+            logger.info(f"Successfully completed async analysis for {provider}.")
+            return {"provider": provider, "data": processed_df}
+
         except Exception as e:
-            logger.error(f"异步分析 {provider} 失败: {e}")
+            logger.error(f"Async analysis for {provider} failed: {e}", exc_info=True)
             return {"provider": provider, "error": str(e)}
-    
-    def _analyze_provider_sync(
-        self, 
-        provider: str, 
-        start_date: str, 
-        end_date: str
-    ) -> Dict[str, Any]:
-        """同步分析单个云平台（在线程池中执行）"""
-        try:
-            if provider == 'aws':
-                return self._analyze_aws_costs(start_date, end_date)
-            elif provider == 'aliyun':
-                return self._analyze_aliyun_costs(start_date, end_date)
-            elif provider == 'tencent':
-                return self._analyze_tencent_costs(start_date, end_date)
-            elif provider == 'volcengine':
-                return self._analyze_volcengine_costs(start_date, end_date)
-            else:
-                raise ValueError(f"不支持的云平台: {provider}")
-        except Exception as e:
-            logger.error(f"分析 {provider} 失败: {e}")
-            return {"provider": provider, "error": str(e)}
-    
-    def _get_enabled_providers(self) -> List[str]:
-        """获取启用的云平台列表"""
-        providers = []
-        
-        # 检查AWS
-        try:
-            if self.aws_client.test_connection()[0]:
-                providers.append('aws')
-        except:
-            pass
-        
-        # 检查阿里云
-        try:
-            if self.aliyun_client.test_connection()[0]:
-                providers.append('aliyun')
-        except:
-            pass
-        
-        # 检查腾讯云
-        try:
-            if self.tencent_client.test_connection()[0]:
-                providers.append('tencent')
-        except:
-            pass
-        
-        # 检查火山云
-        try:
-            if self.volcengine_client.test_connection()[0]:
-                providers.append('volcengine')
-        except:
-            pass
-        
-        return providers
-    
-    def _process_async_results(
-        self, 
-        results: List[Any], 
-        providers: List[str]
-    ) -> Dict[str, Any]:
-        """处理异步结果"""
-        processed_results = {
-            "raw_data": [],
-            "service_costs": {},
-            "region_costs": {},
-            "summary": {},
-            "errors": []
+
+    async def _get_enabled_providers_async(self) -> List[str]:
+        """Asynchronously get the list of enabled cloud providers."""
+        provider_checks = {
+            "aws": self.async_aws_client.test_connection(),
+            "aliyun": self.async_aliyun_client.test_connection(),
+            "tencent": self.async_tencent_client.test_connection(),
+            "volcengine": self.async_volcengine_client.test_connection(),
         }
         
-        for i, result in enumerate(results):
+        results = await asyncio.gather(*provider_checks.values(), return_exceptions=True)
+        
+        enabled_providers = []
+        for provider, result in zip(provider_checks.keys(), results):
             if isinstance(result, Exception):
-                processed_results["errors"].append({
-                    "provider": providers[i],
-                    "error": str(result)
-                })
-            elif isinstance(result, dict) and "error" in result:
-                processed_results["errors"].append(result)
+                logger.error(f"Connection test for {provider} failed with exception: {result}")
+                continue
+
+            is_connected, message = result
+            if is_connected:
+                logger.info(f"Connection successful for {provider}: {message}")
+                enabled_providers.append(provider)
             else:
-                # 合并成功的结果
-                if "raw_data" in result:
-                    processed_results["raw_data"].extend(result["raw_data"])
-                if "service_costs" in result:
-                    processed_results["service_costs"].update(result["service_costs"])
-                if "region_costs" in result:
-                    processed_results["region_costs"].update(result["region_costs"])
+                logger.warning(f"Connection failed for {provider}: {message}")
         
-        return processed_results
-    
-    async def test_connections_async(self) -> Dict[str, tuple[bool, str]]:
-        """异步测试连接"""
-        tasks = []
+        return enabled_providers
+
+    def _process_async_results(
+        self, results: List[Any], providers: List[str]
+    ) -> Dict[str, Any]:
+        """Process the results from the async analysis."""
+        all_data = []
+        errors = []
+
+        for i, result in enumerate(results):
+            provider = providers[i]
+            if isinstance(result, Exception):
+                errors.append({"provider": provider, "error": str(result)})
+            elif "error" in result:
+                errors.append(result)
+            elif "data" in result and not result["data"].empty:
+                all_data.append(result["data"])
+
+        if not all_data:
+            return self._prepare_empty_results(errors)
+
+        combined_df = pd.concat(all_data, ignore_index=True)
         
-        # 创建连接测试任务
-        tasks.append(self._test_connection_async('aws', self.aws_client))
-        tasks.append(self._test_connection_async('aliyun', self.aliyun_client))
-        tasks.append(self._test_connection_async('tencent', self.tencent_client))
-        tasks.append(self._test_connection_async('volcengine', self.volcengine_client))
+        # Perform final analysis on combined data
+        # This part is CPU-bound and done synchronously after all data is fetched.
+        service_costs = self.data_processor.analyze_costs_by_service(combined_df)
+        region_costs = self.data_processor.analyze_costs_by_region(combined_df)
+        summary = self.data_processor.get_cost_summary(combined_df)
+
+        return {
+            "summary": summary,
+            "service_costs": service_costs,
+            "region_costs": region_costs,
+            "raw_data": combined_df,
+            "errors": errors,
+        }
+
+    def _prepare_empty_results(self, errors: List = []) -> Dict[str, Any]:
+        """Return a structured empty result."""
+        return {
+            "summary": {},
+            "service_costs": pd.DataFrame(),
+            "region_costs": pd.DataFrame(),
+            "raw_data": pd.DataFrame(),
+            "errors": errors,
+        }
+
+    async def test_connections_async(self) -> Dict[str, Tuple[bool, str]]:
+        """Asynchronously test connections to all configured cloud providers."""
+        provider_names = list(self.provider_map.keys())
+        tasks = [self.provider_map[p]["client"].test_connection() for p in provider_names]
         
-        # 并发执行
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
-        # 处理结果
         connections = {}
-        provider_names = ['aws', 'aliyun', 'tencent', 'volcengine']
-        
         for i, result in enumerate(results):
+            provider = provider_names[i]
             if isinstance(result, Exception):
-                connections[provider_names[i]] = (False, str(result))
+                connections[provider] = (False, str(result))
             else:
-                connections[provider_names[i]] = result
+                connections[provider] = result
         
         return connections
-    
-    async def _test_connection_async(
-        self, 
-        provider: str, 
-        client: Any
-    ) -> tuple[bool, str]:
-        """异步测试单个连接"""
-        try:
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                self.executor,
-                client.test_connection
-            )
-            return result
-        except Exception as e:
-            return (False, str(e))
-    
+
     def __del__(self):
-        """清理资源"""
-        if hasattr(self, 'executor'):
-            self.executor.shutdown(wait=True)
+        """Clean up resources."""
+        if hasattr(self, "executor"):
+            self.executor.shutdown(wait=False)

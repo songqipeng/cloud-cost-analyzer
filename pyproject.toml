@@ -55,9 +55,7 @@ dev = [
     "pytest-cov>=4.0.0",
     "pytest-mock>=3.10.0",
     "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-    "flake8-docstrings>=1.7.0",
+    "ruff>=0.1.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
     "bandit>=1.7.0",
@@ -71,24 +69,6 @@ jupyter = [
 
 [project.scripts]
 cloud-cost-analyzer = "cloud_cost_analyzer:main"
-
-[tool.black]
-line-length = 100
-target-version = ['py38']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
 
 [tool.mypy]
 python_version = "3.8"
@@ -144,19 +124,46 @@ exclude_lines = [
     "raise NotImplementedError",
     "if 0:",
     "if __name__ == .__main__.:",
-    "class .*\\bProtocol\\):",
+    "class .*\\bProtocol\):",
     "@(abc\\.)?abstractmethod",
 ]
-
-[tool.flake8]
-max-line-length = 100
-max-complexity = 10
-ignore = ["E203", "E501", "W503"]
-exclude = [".git", "__pycache__", "build", "dist", ".venv", ".tox"]
 
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips = ["B101", "B601"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+exclude = [
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".tox",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+# Enable Pyflakes (F), Pycodestyle (E, W), isort (I), Pydocstyle (D), and Security (S) rules by default.
+select = ["E", "F", "W", "I", "D", "S"]
+ignore = ["E203", "W503", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["S101"]
+
+# Allow unused variables in tests.
+"tests/*" = ["F841"]
+
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.mypy]
 [[tool.mypy.overrides]]

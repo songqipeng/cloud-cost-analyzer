@@ -47,6 +47,75 @@ class AWSClient:
         """验证Cost Explorer API权限"""
         return DataValidator.validate_cost_explorer_permissions(self.profile)
     
+    def get_available_regions(self) -> List[str]:
+        """获取AWS所有可用区域"""
+        try:
+            ec2 = self.session.client('ec2', region_name='us-east-1')
+            response = ec2.describe_regions()
+            regions = [region['RegionName'] for region in response['Regions']]
+            # 按常用程度排序，优先检查常用区域
+            priority_regions = ['us-east-1', 'us-west-2', 'eu-west-1', 'ap-northeast-1', 'ap-southeast-1']
+            sorted_regions = []
+            for region in priority_regions:
+                if region in regions:
+                    sorted_regions.append(region)
+                    regions.remove(region)
+            sorted_regions.extend(sorted(regions))
+            return sorted_regions
+        except Exception as e:
+            logger.warning(f"获取可用区域失败，使用默认区域列表: {e}")
+            # 返回常用区域作为备选
+            return ['us-east-1', 'us-west-2', 'eu-west-1', 'ap-northeast-1', 'ap-southeast-1', 
+                   'us-west-1', 'eu-central-1', 'ap-southeast-2', 'ap-south-1', 'sa-east-1']
+    
+    def detect_active_regions(self) -> List[str]:
+        """检测有费用发生的区域（基于Cost Explorer数据）"""
+        try:
+            from datetime import datetime, timedelta
+            
+            # 获取最近30天的区域费用数据
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=30)
+            
+            response = self.ce_client.get_cost_and_usage(
+                TimePeriod={
+                    'Start': start_date.strftime('%Y-%m-%d'),
+                    'End': end_date.strftime('%Y-%m-%d')
+                },
+                Granularity='MONTHLY',
+                Metrics=['BlendedCost'],
+                GroupBy=[
+                    {
+                        'Type': 'DIMENSION',
+                        'Key': 'REGION'
+                    }
+                ]
+            )
+            
+            active_regions = []
+            for result in response.get('ResultsByTime', []):
+                for group in result.get('Groups', []):
+                    region = group.get('Keys', [''])[0]
+                    cost = float(group.get('Metrics', {}).get('BlendedCost', {}).get('Amount', 0))
+                    if region and cost > 0.01:  # 有费用发生的区域
+                        if region not in active_regions:
+                            active_regions.append(region)
+            
+            # 移除'NoRegion'等特殊标识
+            active_regions = [r for r in active_regions if r and r != 'NoRegion']
+            
+            if active_regions:
+                logger.info(f"检测到有费用发生的区域: {', '.join(active_regions)}")
+            else:
+                active_regions = [self.region]
+                logger.info(f"未检测到有费用的区域，使用默认区域: {self.region}")
+                
+            return active_regions
+            
+        except Exception as e:
+            logger.warning(f"检测活动区域失败: {e}")
+            return [self.region]
+    
     def get_cost_and_usage(
         self,
         start_date: str,
