@@ -46,13 +46,13 @@ class DataProcessor:
                     # 解析分组键
                     service = keys[0] if len(keys) > 0 else 'Unknown'
                     region = keys[1] if len(keys) > 1 else 'Unknown'
-                    resource_id = keys[2] if len(keys) > 2 else 'Unknown'
+                    usage_type = keys[2] if len(keys) > 2 else 'Unknown'
                     
                     parsed_data.append({
                         'Date': time_period,
                         'Service': service,
                         'Region': region,
-                        'ResourceId': resource_id,
+                        'UsageType': usage_type,
                         'Cost': float(cost),
                         'Unit': unit
                     })
@@ -150,37 +150,37 @@ class DataProcessor:
     
     def analyze_costs_by_resource(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        按资源分析费用
+        按使用类型分析费用
         
         Args:
             df: 费用数据
             
         Returns:
-            按资源分组的费用统计
+            按使用类型分组的费用统计
         """
-        if df.empty or 'ResourceId' not in df.columns:
+        if df.empty or 'UsageType' not in df.columns:
             return pd.DataFrame()
         
-        # 过滤掉Unknown资源
-        resource_df = df[df['ResourceId'] != 'Unknown'].copy()
+        # 过滤掉Unknown使用类型
+        usage_df = df[df['UsageType'] != 'Unknown'].copy()
         
-        if resource_df.empty:
+        if usage_df.empty:
             return pd.DataFrame()
         
-        # 按资源ID分组统计
-        resource_summary = resource_df.groupby(['Service', 'ResourceId']).agg({
+        # 按使用类型分组统计
+        usage_summary = usage_df.groupby(['Service', 'UsageType']).agg({
             'Cost': ['sum', 'mean', 'count'],
             'Region': 'first'
         }).round(4)
         
         # 重构列名
-        resource_summary.columns = ['总费用', '平均费用', '记录数', '区域']
-        resource_summary = resource_summary.reset_index()
+        usage_summary.columns = ['总费用', '平均费用', '记录数', '区域']
+        usage_summary = usage_summary.reset_index()
         
         # 按总费用排序
-        resource_summary = resource_summary.sort_values('总费用', ascending=False)
+        usage_summary = usage_summary.sort_values('总费用', ascending=False)
         
-        return resource_summary
+        return usage_summary
     
     def analyze_costs_by_time(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -406,37 +406,37 @@ class DataProcessor:
     
     def get_resource_utilization_insights(self, df: pd.DataFrame) -> Dict[str, Any]:
         """
-        获取资源利用率洞察
+        获取使用类型利用率洞察
         
         Args:
             df: 费用数据
             
         Returns:
-            资源利用率分析结果
+            使用类型利用率分析结果
         """
-        if df.empty or 'ResourceId' not in df.columns:
+        if df.empty or 'UsageType' not in df.columns:
             return {}
         
-        # 统计各类型资源数量
-        resource_counts = df[df['ResourceId'] != 'Unknown'].groupby('Service')['ResourceId'].nunique()
+        # 统计各类型使用情况
+        usage_counts = df[df['UsageType'] != 'Unknown'].groupby('Service')['UsageType'].nunique()
         
-        # 计算每个资源的平均费用
-        resource_avg_costs = df[df['ResourceId'] != 'Unknown'].groupby(['Service', 'ResourceId'])['Cost'].mean()
+        # 计算每个使用类型的平均费用
+        usage_avg_costs = df[df['UsageType'] != 'Unknown'].groupby(['Service', 'UsageType'])['Cost'].mean()
         
-        # 识别高成本资源
-        high_cost_threshold = resource_avg_costs.quantile(0.8)
-        high_cost_resources = resource_avg_costs[resource_avg_costs > high_cost_threshold]
+        # 识别高成本使用类型
+        high_cost_threshold = usage_avg_costs.quantile(0.8)
+        high_cost_usages = usage_avg_costs[usage_avg_costs > high_cost_threshold]
         
-        # 识别低成本资源（可能未充分利用）
-        low_cost_threshold = resource_avg_costs.quantile(0.2)
-        low_cost_resources = resource_avg_costs[resource_avg_costs < low_cost_threshold]
+        # 识别低成本使用类型（可能未充分利用）
+        low_cost_threshold = usage_avg_costs.quantile(0.2)
+        low_cost_usages = usage_avg_costs[usage_avg_costs < low_cost_threshold]
         
         return {
-            'total_unique_resources': resource_counts.sum(),
-            'resources_by_service': resource_counts.to_dict(),
-            'high_cost_resource_count': len(high_cost_resources),
-            'low_cost_resource_count': len(low_cost_resources),
-            'avg_cost_per_resource': round(resource_avg_costs.mean(), 2),
+            'total_unique_usage_types': usage_counts.sum(),
+            'usage_types_by_service': usage_counts.to_dict(),
+            'high_cost_usage_count': len(high_cost_usages),
+            'low_cost_usage_count': len(low_cost_usages),
+            'avg_cost_per_usage_type': round(usage_avg_costs.mean(), 2),
             'cost_distribution': {
                 'high_threshold': round(high_cost_threshold, 2),
                 'low_threshold': round(low_cost_threshold, 2)

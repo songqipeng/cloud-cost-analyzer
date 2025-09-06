@@ -76,11 +76,11 @@ class AWSClient:
         # 默认分组
         if group_by is None:
             if include_resource_details:
-                # 资源级别分析：包含资源ID维度
+                # 资源级别分析：包含使用类型维度
                 group_by = [
                     {'Type': 'DIMENSION', 'Key': 'SERVICE'},
                     {'Type': 'DIMENSION', 'Key': 'REGION'},
-                    {'Type': 'DIMENSION', 'Key': 'RESOURCE_ID'}
+                    {'Type': 'DIMENSION', 'Key': 'USAGE_TYPE'}
                 ]
             else:
                 group_by = [
@@ -174,7 +174,7 @@ class AWSClient:
         """
         group_by = [
             {'Type': 'DIMENSION', 'Key': 'SERVICE'},
-            {'Type': 'DIMENSION', 'Key': 'RESOURCE_ID'}
+            {'Type': 'DIMENSION', 'Key': 'USAGE_TYPE'}
         ]
         
         # 添加服务过滤

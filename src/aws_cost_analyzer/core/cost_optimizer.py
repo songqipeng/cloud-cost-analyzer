@@ -68,6 +68,7 @@ class CostOptimizationAnalyzer:
         optimization_report['service_recommendations'] = service_opportunities
         
         # 2. 分析资源级优化机会
+        resource_opportunities = []
         if resource_costs is not None and not resource_costs.empty:
             resource_opportunities = self._analyze_resource_optimization(resource_costs)
             optimization_report['resource_recommendations'] = resource_opportunities
@@ -83,7 +84,7 @@ class CostOptimizationAnalyzer:
         # 5. 计算总体潜在节省
         total_savings = self._calculate_total_potential_savings(
             service_opportunities, 
-            resource_opportunities if resource_costs is not None else []
+            resource_opportunities
         )
         optimization_report['total_potential_savings'] = total_savings
         

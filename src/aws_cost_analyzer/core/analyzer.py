@@ -99,6 +99,12 @@ class AWSCostAnalyzer:
         Returns:
             完整的分析结果字典
         """
+        # 确保有默认日期
+        if not start_date or not end_date:
+            # 默认获取过去1年的数据
+            end_date = datetime.now().strftime('%Y-%m-%d')
+            start_date = (datetime.now() - relativedelta(years=1)).strftime('%Y-%m-%d')
+        
         # 获取基本费用数据
         cost_data = self.get_cost_data(start_date, end_date, granularity)
         if not cost_data:
