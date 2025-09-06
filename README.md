@@ -39,7 +39,7 @@
 
 ### 1. 安装
 
-无需虚拟环境，三步即可完成安装。
+无需虚拟环境，四步即可完成安装。
 
 ```bash
 # 1. 克隆项目
@@ -48,7 +48,10 @@ git clone https://github.com/songqipeng/cloud-cost-analyzer.git
 # 2. 进入目录
 cd cloud-cost-analyzer
 
-# 3. 安装依赖
+# 3. (推荐) 升级pip
+python -m pip install --upgrade pip
+
+# 4. 安装依赖
 pip install -e .[dev]
 ```
 
