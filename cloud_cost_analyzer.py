@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-AWS费用分析器 - 重构版本
-一个功能强大的AWS云服务费用分析工具
+Cloud Cost Analyzer - 多云费用分析器
+一个功能强大的多云服务费用分析工具，支持AWS、阿里云、腾讯云、火山云
 """
 import sys
 import os
@@ -15,6 +15,7 @@ from dateutil.relativedelta import relativedelta
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from aws_cost_analyzer.core.analyzer import AWSCostAnalyzer
+from aws_cost_analyzer.core.multi_cloud_analyzer import MultiCloudAnalyzer
 from aws_cost_analyzer.utils.config import Config
 from aws_cost_analyzer.utils.validators import DataValidator
 from aws_cost_analyzer.utils.logger import get_logger
@@ -182,17 +183,70 @@ def custom_analysis_cli(analyzer: AWSCostAnalyzer, args) -> None:
         print(f"{Fore.RED}❌ 自定义分析失败: {e}{Style.RESET_ALL}")
 
 
+def multi_cloud_analysis_cli(args) -> None:
+    """多云分析"""
+    try:
+        # 创建多云分析器实例
+        multi_analyzer = MultiCloudAnalyzer()
+        
+        # 加载配置并初始化通知管理器
+        config = Config.load_config()
+        if config:
+            multi_analyzer.initialize_notifications(config)
+        
+        # 分析多云费用数据
+        raw_data, service_costs, region_costs = multi_analyzer.analyze_multi_cloud_costs()
+        
+        if not raw_data:
+            print(f"{Fore.RED}没有费用数据可分析{Style.RESET_ALL}")
+            return
+        
+        # 打印分析结果
+        multi_analyzer.print_multi_cloud_summary(raw_data)
+        multi_analyzer.print_multi_cloud_service_analysis(service_costs)
+        multi_analyzer.print_multi_cloud_region_analysis(region_costs)
+        
+        # 生成报告
+        if args.format in ['txt', 'all']:
+            generated_files = multi_analyzer.generate_multi_cloud_reports(
+                raw_data, service_costs, region_costs, args.output, ['txt']
+            )
+            if 'txt' in generated_files:
+                print(f"{Fore.GREEN}✅ 多云报告已保存: {generated_files['txt']}{Style.RESET_ALL}")
+        
+        if args.format in ['html', 'all']:
+            generated_files = multi_analyzer.generate_multi_cloud_reports(
+                raw_data, service_costs, region_costs, args.output, ['html']
+            )
+            if 'html' in generated_files:
+                print(f"{Fore.GREEN}✅ 多云报告已保存: {generated_files['html']}{Style.RESET_ALL}")
+        
+    except Exception as e:
+        print(f"{Fore.RED}❌ 多云分析失败: {e}{Style.RESET_ALL}")
+
+
 def config_check_cli(analyzer: AWSCostAnalyzer, args) -> None:
     """配置检查"""
     print(f"{Fore.CYAN}🔧 配置检查{Style.RESET_ALL}")
     print("=" * 50)
     
-    # 检查AWS连接
-    is_connected, message = analyzer.test_connection()
-    if is_connected:
-        print(f"{Fore.GREEN}✅ AWS连接: {message}{Style.RESET_ALL}")
-    else:
-        print(f"{Fore.RED}❌ AWS连接: {message}{Style.RESET_ALL}")
+    # 检查多云连接
+    multi_analyzer = MultiCloudAnalyzer()
+    connections = multi_analyzer.test_connections()
+    
+    for provider, (is_connected, message) in connections.items():
+        provider_names = {
+            'aws': 'AWS',
+            'aliyun': '阿里云', 
+            'tencent': '腾讯云',
+            'volcengine': '火山云'
+        }
+        provider_name = provider_names.get(provider, provider)
+        
+        if is_connected:
+            print(f"{Fore.GREEN}✅ {provider_name}连接: {message}{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.RED}❌ {provider_name}连接: {message}{Style.RESET_ALL}")
     
     # 检查配置文件
     config = Config.load_config()
@@ -214,17 +268,18 @@ def config_check_cli(analyzer: AWSCostAnalyzer, args) -> None:
 def print_usage_guide():
     """打印使用指南"""
     print("=" * 80)
-    print(f"{Fore.CYAN}🚀 AWS费用分析器 - 使用指南{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}🚀 Cloud Cost Analyzer - 多云费用分析器{Style.RESET_ALL}")
     print("=" * 80)
-    print("一个功能强大的AWS云服务费用分析工具")
+    print("支持AWS、阿里云、腾讯云、火山云的多云费用分析工具")
     print("=" * 80)
     print()
     print(f"{Fore.YELLOW}📋 基本用法:{Style.RESET_ALL}")
     print("  aws_cost_analyzer [命令] [选项]")
     print()
     print(f"{Fore.YELLOW}🔧 可用命令:{Style.RESET_ALL}")
-    print("  quick         快速分析过去1年的费用")
-    print("  custom        自定义时间范围分析")
+    print("  quick         快速分析过去1年的AWS费用")
+    print("  custom        自定义时间范围AWS分析")
+    print("  multi-cloud   多云费用分析 (AWS + 阿里云 + 腾讯云 + 火山云)")
     print("  config        配置检查")
     print("  help          显示此帮助信息")
     print()
@@ -237,11 +292,14 @@ def print_usage_guide():
     print("  --format FMT  输出格式: txt, html, all (默认: all)")
     print()
     print(f"{Fore.YELLOW}💡 使用示例:{Style.RESET_ALL}")
-    print("  # 快速分析")
+    print("  # 快速分析AWS费用")
     print("  aws_cost_analyzer quick")
     print()
-    print("  # 自定义时间范围分析")
+    print("  # 自定义时间范围AWS分析")
     print("  aws_cost_analyzer custom --start 2024-01-01 --end 2024-12-31")
+    print()
+    print("  # 多云费用分析 (AWS + 阿里云 + 腾讯云 + 火山云)")
+    print("  cloud_cost_analyzer multi-cloud")
     print()
     print("  # 配置检查")
     print("  aws_cost_analyzer config")
@@ -289,6 +347,11 @@ def main():
     custom_parser.add_argument('--output', default='.', help='输出目录')
     custom_parser.add_argument('--format', choices=['txt', 'html', 'all'], default='all', help='输出格式')
     
+    # 多云分析命令
+    multi_cloud_parser = subparsers.add_parser('multi-cloud', help='多云费用分析 (AWS + 阿里云)')
+    multi_cloud_parser.add_argument('--output', default='.', help='输出目录')
+    multi_cloud_parser.add_argument('--format', choices=['txt', 'html', 'all'], default='all', help='输出格式')
+    
     # 配置检查命令
     config_parser = subparsers.add_parser('config', help='配置检查')
     
@@ -316,6 +379,8 @@ def main():
             quick_analysis_cli(analyzer, args)
         elif args.command == 'custom':
             custom_analysis_cli(analyzer, args)
+        elif args.command == 'multi-cloud':
+            multi_cloud_analysis_cli(args)
         elif args.command == 'config':
             config_check_cli(analyzer, args)
         
