@@ -165,14 +165,3 @@ max-complexity = 10
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[tool.mypy]
-[[tool.mypy.overrides]]
-module = [
-    "alibabacloud_bssopenapi20171214.*",
-    "tencentcloud.*",
-    "volcengine.*",
-    "matplotlib.*",
-    "seaborn.*",
-    "plotly.*"
-]
-ignore_missing_imports = true
