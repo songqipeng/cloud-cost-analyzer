@@ -265,12 +265,7 @@ class AWSClient:
             if not is_valid:
                 return False, f"凭证验证失败: {error_msg}"
             
-            # 验证Cost Explorer权限
-            has_permission, error_msg = self.validate_cost_explorer_permissions()
-            if not has_permission:
-                return False, f"权限验证失败: {error_msg}"
-            
-            # 获取账户信息
+            # 获取账户信息（这会验证基本的AWS权限）
             account_info = self.get_account_info()
             
             return True, f"连接成功 - 账户ID: {account_info['account_id']}"

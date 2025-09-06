@@ -102,7 +102,23 @@ def quick_analysis_cli(args) -> None:
         multi_analyzer = MultiCloudAnalyzer()
         
         # 检查所有云平台连接状态
+        print(f"{Fore.CYAN}🔍 检查云平台连接状态...{Style.RESET_ALL}")
         connections = multi_analyzer.test_connections()
+        
+        # 显示连接状态
+        for provider, (is_connected, message) in connections.items():
+            provider_names = {
+                'aws': 'AWS',
+                'aliyun': '阿里云', 
+                'tencent': '腾讯云',
+                'volcengine': '火山云'
+            }
+            provider_name = provider_names.get(provider, provider)
+            
+            if is_connected:
+                print(f"{Fore.GREEN}✅ {provider_name}: {message}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}⚠️  {provider_name}: {message}{Style.RESET_ALL}")
         
         # 找到第一个可用的云平台
         available_provider = None
@@ -112,7 +128,7 @@ def quick_analysis_cli(args) -> None:
                 break
         
         if not available_provider:
-            print(f"{Fore.RED}❌ 没有可用的云平台连接{Style.RESET_ALL}")
+            print(f"\n{Fore.RED}❌ 没有可用的云平台连接{Style.RESET_ALL}")
             print("请配置至少一个云平台的凭证，参考：python cloud_cost_analyzer.py help")
             return
         
