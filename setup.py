@@ -10,14 +10,14 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="cloud-cost-analyzer",
+    name="multi-cloud-analyzer",
     version="2.0.0",
-    author="Cloud Cost Analyzer Team", 
+    author="Multi-Cloud Analyzer Team", 
     author_email="",
     description="一个功能强大的多云费用分析工具，支持AWS、阿里云、腾讯云、火山云",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/songqipeng/cloud-cost-analyzer",
+    url="https://github.com/songqipeng/multi-cloud-analyzer",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     classifiers=[
@@ -41,7 +41,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "cloud-cost-analyzer=aws_cost_analyzer:main",
+            "multi-cloud-analyzer=aws_cost_analyzer:main",
         ],
     },
     include_package_data=True,
