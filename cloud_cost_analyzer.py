@@ -98,34 +98,39 @@ def setup_aws_credentials():
 def quick_analysis_cli(analyzer: AWSCostAnalyzer, args) -> None:
     """命令行快速分析"""
     try:
-        # 分析费用数据
-        df, service_costs, region_costs = analyzer.analyze_costs()
+        # 分析费用数据 - 使用新的增强分析接口
+        analysis_result = analyzer.analyze_costs(
+            include_resource_details=True,
+            enable_optimization_analysis=True
+        )
         
+        # 检查分析结果
+        if 'error' in analysis_result:
+            print(f"{Fore.RED}{analysis_result['error']}{Style.RESET_ALL}")
+            return
+        
+        df = analysis_result.get('data')
         if df is None or df.empty:
             print(f"{Fore.RED}没有费用数据可分析{Style.RESET_ALL}")
             return
         
-        # 打印分析结果
-        analyzer.print_summary(df)
-        analyzer.print_service_analysis(service_costs)
-        analyzer.print_region_analysis(region_costs)
+        # 打印增强分析结果
+        analyzer.print_enhanced_analysis_results(analysis_result)
         
-        # 发送通知
-        if analyzer.notification_manager:
+        # 发送通知 (兼容原接口)
+        service_costs = analysis_result.get('service_costs')
+        region_costs = analysis_result.get('region_costs')
+        if analyzer.notification_manager and service_costs is not None and region_costs is not None:
             analyzer.send_notifications(df, service_costs, region_costs)
         
         # 生成报告
         if args.format in ['txt', 'all']:
-            generated_files = analyzer.generate_reports(
-                df, service_costs, region_costs, args.output, ['txt']
-            )
+            generated_files = analyzer.generate_reports(analysis_result, args.output, ['txt'])
             if 'txt' in generated_files:
                 print(f"{Fore.GREEN}✅ 报告已保存: {generated_files['txt']}{Style.RESET_ALL}")
         
         if args.format in ['html', 'all']:
-            generated_files = analyzer.generate_reports(
-                df, service_costs, region_costs, args.output, ['html']
-            )
+            generated_files = analyzer.generate_reports(analysis_result, args.output, ['html'])
             if 'html' in generated_files:
                 print(f"{Fore.GREEN}✅ 报告已保存: {generated_files['html']}{Style.RESET_ALL}")
         
@@ -148,34 +153,31 @@ def custom_analysis_cli(analyzer: AWSCostAnalyzer, args) -> None:
     
     try:
         # 分析费用数据
-        df, service_costs, region_costs = analyzer.analyze_costs(args.start, args.end)
+        analysis_result = analyzer.analyze_costs(args.start, args.end)
+        df = analysis_result.get('raw_data')
         
         if df is None or df.empty:
             print(f"{Fore.RED}没有费用数据可分析{Style.RESET_ALL}")
             return
         
-        # 打印分析结果
-        analyzer.print_summary(df)
-        analyzer.print_service_analysis(service_costs)
-        analyzer.print_region_analysis(region_costs)
+        # 打印增强分析结果
+        analyzer.print_enhanced_analysis_results(analysis_result)
         
-        # 发送通知
-        if analyzer.notification_manager:
+        # 发送通知 (兼容原接口)
+        service_costs = analysis_result.get('service_costs')
+        region_costs = analysis_result.get('region_costs')
+        if analyzer.notification_manager and service_costs is not None and region_costs is not None:
             time_range = f"{args.start} 到 {args.end}"
             analyzer.send_notifications(df, service_costs, region_costs, time_range)
         
         # 生成报告
         if args.format in ['txt', 'all']:
-            generated_files = analyzer.generate_reports(
-                df, service_costs, region_costs, args.output, ['txt']
-            )
+            generated_files = analyzer.generate_reports(analysis_result, args.output, ['txt'])
             if 'txt' in generated_files:
                 print(f"{Fore.GREEN}✅ 报告已保存: {generated_files['txt']}{Style.RESET_ALL}")
         
         if args.format in ['html', 'all']:
-            generated_files = analyzer.generate_reports(
-                df, service_costs, region_costs, args.output, ['html']
-            )
+            generated_files = analyzer.generate_reports(analysis_result, args.output, ['html'])
             if 'html' in generated_files:
                 print(f"{Fore.GREEN}✅ 报告已保存: {generated_files['html']}{Style.RESET_ALL}")
         
