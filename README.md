@@ -42,8 +42,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/songqipeng/multi-cloud-analyzer.git
-cd multi-cloud-analyzer
+git clone https://github.com/songqipeng/cloud-cost-analyzer.git
+cd cloud-cost-analyzer
 
 # 安装依赖
 pip3 install -r requirements.txt
@@ -287,7 +287,7 @@ chmod +x cloud_cost_analyzer.py
 crontab -e
 
 # 添加定时任务（每天早上8点执行多云分析）
-0 8 * * * cd /path/to/multi-cloud-analyzer && python3 cloud_cost_analyzer.py multi-cloud >> cron.log 2>&1
+0 8 * * * cd /path/to/cloud-cost-analyzer && python3 cloud_cost_analyzer.py multi-cloud >> cron.log 2>&1
 ```
 
 ### 使用管理脚本
@@ -459,7 +459,7 @@ print(client.test_connection())
 ## 📁 项目结构
 
 ```
-multi-cloud-analyzer/
+cloud-cost-analyzer/
 ├── cloud_cost_analyzer.py          # 主程序入口
 ├── requirements.txt                 # Python依赖包
 ├── config.json                      # 配置文件（自动生成）
@@ -488,8 +488,8 @@ multi-cloud-analyzer/
 
 1. **克隆项目**
    ```bash
-   git clone https://github.com/songqipeng/multi-cloud-analyzer.git
-   cd multi-cloud-analyzer
+   git clone https://github.com/songqipeng/cloud-cost-analyzer.git
+   cd cloud-cost-analyzer
    ```
 
 2. **安装依赖**
@@ -514,7 +514,7 @@ multi-cloud-analyzer/
    ```bash
    # 每天早上8点自动运行
    crontab -e
-   # 添加：0 8 * * * cd /path/to/multi-cloud-analyzer && python3 cloud_cost_analyzer.py multi-cloud >> cron.log 2>&1
+   # 添加：0 8 * * * cd /path/to/cloud-cost-analyzer && python3 cloud_cost_analyzer.py multi-cloud >> cron.log 2>&1
    ```
 
 ---
