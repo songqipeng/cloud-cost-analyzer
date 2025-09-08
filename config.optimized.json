@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Cloud Cost Analyzer Optimized Configuration",
+  "description": "优化后的云成本分析器配置文件",
+  
+  "cache": {
+    "enabled": true,
+    "l1_enabled": true,
+    "l2_enabled": true,
+    "l3_enabled": false,
+    "l1": {
+      "max_size": 1000,
+      "default_ttl": 300
+    },
+    "l2": {
+      "cache_dir": ".cache",
+      "default_ttl": 3600
+    },
+    "l3": {
+      "host": "localhost",
+      "port": 6379,
+      "db": 0,
+      "password": null,
+      "default_ttl": 7200,
+      "key_prefix": "cloud_cost:"
+    }
+  },
+  
+  "async": {
+    "enabled": true,
+    "max_concurrent_providers": 4,
+    "max_concurrent_per_provider": 3,
+    "connection_pool_size": 50,
+    "task_timeout": 300
+  },
+  
+  "retry": {
+    "aws": {
+      "max_tries": 3,
+      "base_delay": 1.0,
+      "max_delay": 16.0
+    },
+    "cloud_api": {
+      "max_tries": 3,
+      "base_delay": 2.0,
+      "max_delay": 32.0
+    },
+    "cache_operation": {
+      "max_tries": 2,
+      "base_delay": 0.5,
+      "max_delay": 2.0
+    }
+  },
+  
+  "circuit_breaker": {
+    "failure_threshold": 5,
+    "timeout": 60
+  },
+  
+  "rate_limiting": {
+    "aws": {
+      "rate": 5.0,
+      "burst": 10
+    },
+    "aliyun": {
+      "rate": 3.0,
+      "burst": 8
+    },
+    "tencent": {
+      "rate": 3.0,
+      "burst": 8
+    },
+    "volcengine": {
+      "rate": 3.0,
+      "burst": 8
+    }
+  },
+  
+  "logging": {
+    "level": "INFO",
+    "enable_file_logging": true,
+    "log_dir": "logs",
+    "max_log_size": 10485760,
+    "backup_count": 5,
+    "sensitive_data_masking": true
+  },
+  
+  "monitoring": {
+    "enabled": true,
+    "auto_start_metrics": true,
+    "system_collection_interval": 5,
+    "max_history": 1000,
+    "export_interval": 300,
+    "health_check_interval": 60
+  },
+  
+  "aws": {
+    "enabled": true,
+    "region": "us-east-1",
+    "profile": null,
+    "access_key_id": null,
+    "secret_access_key": null,
+    "session_token": null,
+    "timeout": 30,
+    "max_retries": 3
+  },
+  
+  "aliyun": {
+    "enabled": true,
+    "region": "cn-hangzhou",
+    "access_key_id": null,
+    "access_key_secret": null,
+    "timeout": 30,
+    "max_retries": 3
+  },
+  
+  "tencent": {
+    "enabled": true,
+    "region": "ap-beijing",
+    "secret_id": null,
+    "secret_key": null,
+    "timeout": 30,
+    "max_retries": 3
+  },
+  
+  "volcengine": {
+    "enabled": true,
+    "region": "cn-beijing",
+    "access_key_id": null,
+    "secret_access_key": null,
+    "timeout": 30,
+    "max_retries": 3
+  },
+  
+  "reports": {
+    "default_format": ["html", "txt"],
+    "output_dir": "./reports",
+    "template_dir": "./templates",
+    "include_charts": true,
+    "chart_theme": "plotly_white",
+    "date_format": "%Y-%m-%d"
+  },
+  
+  "notifications": {
+    "enabled": false,
+    "email": {
+      "enabled": false,
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587,
+      "username": null,
+      "password": null,
+      "from_email": null,
+      "to_emails": [],
+      "subject_prefix": "[Cloud Cost Analyzer]"
+    },
+    "feishu": {
+      "enabled": false,
+      "webhook_url": null,
+      "secret": null
+    }
+  },
+  
+  "scheduler": {
+    "enabled": false,
+    "daily_analysis": {
+      "enabled": false,
+      "time": "09:00",
+      "timezone": "Asia/Shanghai",
+      "providers": ["aws", "aliyun", "tencent", "volcengine"]
+    },
+    "weekly_report": {
+      "enabled": false,
+      "day": "monday",
+      "time": "10:00",
+      "timezone": "Asia/Shanghai"
+    }
+  },
+  
+  "security": {
+    "mask_sensitive_data": true,
+    "encrypt_cache": false,
+    "audit_logging": true,
+    "max_failed_attempts": 5,
+    "lockout_duration": 300
+  },
+  
+  "performance": {
+    "parallel_processing": true,
+    "batch_size": 100,
+    "memory_limit_mb": 512,
+    "cleanup_interval": 3600
+  }
+}
