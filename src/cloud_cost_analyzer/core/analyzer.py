@@ -111,37 +111,38 @@ class AWSCostAnalyzer:
             return {'error': 'Failed to retrieve cost data', 'data': None}
         
         # 解析费用数据
-        df = self.data_processor.parse_cost_data(cost_data)
+        df = self.data_processor.process(cost_data)
         if df.empty:
             return {'error': 'No cost data available', 'data': None}
         
         # 基础分析
         service_costs = self.data_processor.analyze_costs_by_service(df)
         region_costs = self.data_processor.analyze_costs_by_region(df)
+        cost_summary = self.data_processor.get_cost_summary(df)
         
         # 构建结果字典
         analysis_result = {
             'data': df,
             'service_costs': service_costs,
             'region_costs': region_costs,
-            'cost_summary': self.data_processor.get_cost_summary(df),
-            'trend_analysis': self.data_processor.analyze_cost_trends(df)
+            'cost_summary': cost_summary,
+            'top_services': self.data_processor.get_top_services(df),
+            'top_regions': self.data_processor.get_top_regions(df)
         }
         
         # 资源级分析（如果启用）
-        resource_costs = None
         if include_resource_details:
             try:
                 # 获取资源级费用数据
                 resource_data = self.client.get_cost_by_resource(start_date, end_date, granularity='DAILY')
                 if resource_data:
-                    resource_df = self.data_processor.parse_cost_data(resource_data)
+                    resource_df = self.data_processor.process(resource_data)
                     if not resource_df.empty:
-                        resource_costs = self.data_processor.analyze_costs_by_resource(resource_df)
-                        analysis_result['resource_costs'] = resource_costs
-                        analysis_result['resource_insights'] = self.data_processor.get_resource_utilization_insights(resource_df)
+                        # 使用基础分析方法
+                        resource_service_costs = self.data_processor.analyze_costs_by_service(resource_df)
+                        analysis_result['resource_costs'] = resource_service_costs
             except Exception as e:
-                self.console.print(f"[yellow]Warning: Could not retrieve resource details: {e}[/yellow]")
+                print(f"Warning: Could not retrieve resource details: {e}")
         
         # 异常检测
         try:
@@ -154,12 +155,14 @@ class AWSCostAnalyzer:
         # 成本优化分析（如果启用）
         if enable_optimization_analysis:
             try:
+                # 使用资源费用数据，如果没有则为None
+                resource_costs_data = analysis_result.get('resource_costs')
                 optimization_report = self.cost_optimizer.analyze_cost_optimization_opportunities(
-                    df, service_costs, resource_costs
+                    df, service_costs, resource_costs_data
                 )
                 analysis_result['optimization_report'] = optimization_report
             except Exception as e:
-                self.console.print(f"[yellow]Warning: Optimization analysis failed: {e}[/yellow]")
+                print(f"Warning: Optimization analysis failed: {e}")
                 analysis_result['optimization_report'] = {}
         
         return analysis_result

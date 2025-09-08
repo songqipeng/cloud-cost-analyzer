@@ -70,7 +70,7 @@ jupyter = [
 ]
 
 [project.scripts]
-cloud-cost-analyzer = "cloud_cost_analyzer:main"
+cloud-cost-analyzer = "cloud_cost_analyzer.__main__:main"
 
 [tool.mypy]
 python_version = "3.8"

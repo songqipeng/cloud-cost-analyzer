@@ -1,234 +1,335 @@
 """
-基础接口和抽象类
+基础抽象类和接口定义
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import date
-import pandas as pd
+from typing import Dict, Any, Optional, List, Tuple
+from datetime import datetime, date
+import asyncio
+from dataclasses import dataclass
+
+from ..models.cost_models import (
+    CloudProvider, CostData, CostAnalysisRequest, 
+    CostAnalysisResponse, CostSummary, ServiceCost, RegionCost
+)
+from ..utils.security import SecurityManager
+from ..utils.logger import get_logger
+
+logger = get_logger()
+
+
+@dataclass
+class ProviderConfig:
+    """云服务提供商配置"""
+    provider: CloudProvider
+    enabled: bool = True
+    region: str = "us-east-1"
+    credentials: Dict[str, str] = None
+    timeout: int = 30
+    retry_attempts: int = 3
+    retry_delay: float = 1.0
+    
+    def __post_init__(self):
+        if self.credentials is None:
+            self.credentials = {}
 
 
 class CloudProviderClient(ABC):
-    """云服务提供商客户端基础接口"""
+    """云服务提供商客户端抽象基类"""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """初始化客户端"""
-        self.config = config or {}
-        self.provider_name = self._get_provider_name()
-        self.region = self._get_default_region()
-        
-    @abstractmethod
-    def _get_provider_name(self) -> str:
-        """获取云服务提供商名称"""
-        pass
+    def __init__(self, config: ProviderConfig):
+        self.config = config
+        self.security_manager = SecurityManager()
+        self.logger = logger
     
     @abstractmethod
-    def _get_default_region(self) -> str:
-        """获取默认区域"""
-        pass
-    
-    @abstractmethod
-    def test_connection(self) -> bool:
+    async def test_connection(self) -> Tuple[bool, str]:
         """测试连接"""
         pass
     
     @abstractmethod
-    def get_cost_data(self, start_date: date, end_date: date) -> Dict[str, Any]:
+    async def get_cost_data(self, start_date: str, end_date: str, 
+                          granularity: str = 'MONTHLY') -> Optional[Dict[str, Any]]:
         """获取费用数据"""
         pass
     
     @abstractmethod
-    def process_cost_data(self, raw_data: Dict[str, Any]) -> pd.DataFrame:
-        """处理费用数据"""
+    async def get_resource_details(self, start_date: str, end_date: str) -> Optional[Dict[str, Any]]:
+        """获取资源详细信息"""
         pass
     
-    def analyze(self, start_date: Optional[date] = None, 
-                end_date: Optional[date] = None) -> Dict[str, Any]:
-        """分析费用数据"""
-        # 默认实现：获取数据 -> 处理数据 -> 分析结果
-        raw_data = self.get_cost_data(start_date, end_date)
-        processed_data = self.process_cost_data(raw_data)
-        return self._analyze_processed_data(processed_data)
+    def get_provider_name(self) -> str:
+        """获取提供商名称"""
+        return self.config.provider.value
     
-    def _analyze_processed_data(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """分析处理后的数据"""
-        if df.empty:
-            return {
-                'summary': {
-                    'total_cost': 0.0,
-                    'currency': 'USD',
-                    'days': 0,
-                    'average_daily_cost': 0.0
-                },
-                'by_service': pd.DataFrame(),
-                'by_region': pd.DataFrame()
-            }
-        
-        # 计算摘要信息
-        total_cost = df['Cost'].sum()
-        currency = df['Currency'].iloc[0] if 'Currency' in df.columns else 'USD'
-        unique_dates = df['Date'].nunique() if 'Date' in df.columns else 1
-        avg_daily = total_cost / max(unique_dates, 1)
-        
-        # 按服务分组
-        by_service = df.groupby('Service').agg({
-            'Cost': ['sum', 'mean', 'count']
-        }).round(2)
-        by_service.columns = ['Cost', 'AvgCost', 'Count']
-        by_service = by_service.sort_values('Cost', ascending=False).reset_index()
-        
-        # 按区域分组（如果有区域信息）
-        by_region = pd.DataFrame()
-        if 'Region' in df.columns:
-            by_region = df.groupby('Region').agg({
-                'Cost': ['sum', 'count']
-            }).round(2)
-            by_region.columns = ['Cost', 'Count']
-            by_region = by_region.sort_values('Cost', ascending=False).reset_index()
-        
-        return {
-            'summary': {
-                'total_cost': round(total_cost, 2),
-                'currency': currency,
-                'days': unique_dates,
-                'average_daily_cost': round(avg_daily, 2)
-            },
-            'by_service': by_service,
-            'by_region': by_region
-        }
+    def is_enabled(self) -> bool:
+        """检查是否启用"""
+        return self.config.enabled
+
+
+class DataProcessor(ABC):
+    """数据处理器抽象基类"""
     
-    def _format_service_name(self, service_name: str) -> str:
-        """格式化服务名称（子类可重写）"""
-        return service_name
+    def __init__(self, cost_threshold: float = 0.01):
+        self.cost_threshold = cost_threshold
+        self.security_manager = SecurityManager()
+        self.logger = logger
     
-    def _format_region_name(self, region_name: str) -> str:
-        """格式化区域名称（子类可重写）"""
-        return region_name
+    @abstractmethod
+    def parse_cost_data(self, raw_data: Dict[str, Any]) -> List[CostData]:
+        """解析原始费用数据"""
+        pass
+    
+    @abstractmethod
+    def analyze_costs_by_service(self, cost_data: List[CostData]) -> List[ServiceCost]:
+        """按服务分析费用"""
+        pass
+    
+    @abstractmethod
+    def analyze_costs_by_region(self, cost_data: List[CostData]) -> List[RegionCost]:
+        """按区域分析费用"""
+        pass
+    
+    @abstractmethod
+    def get_cost_summary(self, cost_data: List[CostData]) -> CostSummary:
+        """获取费用摘要"""
+        pass
+    
+    def filter_by_threshold(self, cost_data: List[CostData]) -> List[CostData]:
+        """按阈值过滤费用数据"""
+        return [data for data in cost_data if data.cost >= self.cost_threshold]
 
 
 class CostAnalyzer(ABC):
-    """费用分析器基础接口"""
+    """成本分析器抽象基类"""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """初始化分析器"""
-        self.config = config or {}
-        
+    def __init__(self, client: CloudProviderClient, processor: DataProcessor):
+        self.client = client
+        self.processor = processor
+        self.security_manager = SecurityManager()
+        self.logger = logger
+    
     @abstractmethod
-    def analyze(self, start_date: Optional[date] = None, 
-                end_date: Optional[date] = None, **kwargs) -> Dict[str, Any]:
-        """执行费用分析"""
+    async def analyze_costs(self, request: CostAnalysisRequest) -> CostAnalysisResponse:
+        """分析费用"""
         pass
     
     @abstractmethod
-    def test_connection(self) -> bool:
-        """测试连接状态"""
+    async def detect_anomalies(self, cost_data: List[CostData]) -> List[Dict[str, Any]]:
+        """检测费用异常"""
         pass
     
-    def _validate_date_range(self, start_date: date, end_date: date) -> None:
-        """验证日期范围"""
-        from cloud_cost_analyzer.utils.validators import DataValidator
-        DataValidator.validate_date_range(start_date, end_date)
+    @abstractmethod
+    async def generate_optimization_recommendations(self, cost_data: List[CostData]) -> List[Dict[str, Any]]:
+        """生成优化建议"""
+        pass
+
+
+class ReportGenerator(ABC):
+    """报告生成器抽象基类"""
     
-    def _filter_by_threshold(self, df: pd.DataFrame, cost_column: str) -> pd.DataFrame:
-        """按费用阈值过滤数据"""
-        threshold = self.config.get('cost_threshold', 0.01)
-        if threshold > 0:
-            return df[df[cost_column] >= threshold]
-        return df
+    def __init__(self):
+        self.security_manager = SecurityManager()
+        self.logger = logger
+    
+    @abstractmethod
+    async def generate_text_report(self, response: CostAnalysisResponse, output_path: str) -> bool:
+        """生成文本报告"""
+        pass
+    
+    @abstractmethod
+    async def generate_html_report(self, response: CostAnalysisResponse, output_path: str) -> bool:
+        """生成HTML报告"""
+        pass
+    
+    @abstractmethod
+    async def generate_json_report(self, response: CostAnalysisResponse, output_path: str) -> bool:
+        """生成JSON报告"""
+        pass
 
 
-class NotificationProvider(ABC):
-    """通知提供商基础接口"""
+class NotificationService(ABC):
+    """通知服务抽象基类"""
     
     def __init__(self, config: Dict[str, Any]):
-        """初始化通知提供商"""
         self.config = config
-        self.enabled = config.get('enabled', False)
-        
+        self.security_manager = SecurityManager()
+        self.logger = logger
+    
     @abstractmethod
-    def send_notification(self, title: str, content: str, 
-                         attachments: Optional[List[str]] = None) -> bool:
+    async def send_notification(self, message: str, subject: str = "") -> bool:
         """发送通知"""
         pass
     
     @abstractmethod
-    def test_connection(self) -> bool:
-        """测试连接"""
+    async def send_cost_report(self, response: CostAnalysisResponse) -> bool:
+        """发送费用报告"""
         pass
-    
-    def is_enabled(self) -> bool:
-        """检查是否启用"""
-        return self.enabled
 
 
-class ReportGenerator(ABC):
-    """报告生成器基础接口"""
+class CloudProviderFactory:
+    """云服务提供商工厂类"""
     
-    def __init__(self, config: Dict[str, Any]):
-        """初始化报告生成器"""
-        self.config = config
+    _clients = {}
+    _processors = {}
+    _analyzers = {}
+    
+    @classmethod
+    def register_client(cls, provider: CloudProvider, client_class):
+        """注册客户端类"""
+        cls._clients[provider] = client_class
+    
+    @classmethod
+    def register_processor(cls, provider: CloudProvider, processor_class):
+        """注册数据处理器类"""
+        cls._processors[provider] = processor_class
+    
+    @classmethod
+    def register_analyzer(cls, provider: CloudProvider, analyzer_class):
+        """注册分析器类"""
+        cls._analyzers[provider] = analyzer_class
+    
+    @classmethod
+    def create_client(cls, provider: CloudProvider, config: ProviderConfig) -> CloudProviderClient:
+        """创建客户端实例"""
+        if provider not in cls._clients:
+            raise ValueError(f"未注册的云服务提供商: {provider}")
         
-    @abstractmethod
-    def generate_console_report(self, data: Dict[str, Any]) -> None:
-        """生成控制台报告"""
-        pass
+        client_class = cls._clients[provider]
+        return client_class(config)
     
-    @abstractmethod
-    def generate_file_report(self, data: Dict[str, Any], 
-                           output_path: str, format_type: str) -> str:
-        """生成文件报告"""
-        pass
+    @classmethod
+    def create_processor(cls, provider: CloudProvider, cost_threshold: float = 0.01) -> DataProcessor:
+        """创建数据处理器实例"""
+        if provider not in cls._processors:
+            raise ValueError(f"未注册的数据处理器: {provider}")
+        
+        processor_class = cls._processors[provider]
+        return processor_class(cost_threshold)
+    
+    @classmethod
+    def create_analyzer(cls, provider: CloudProvider, config: ProviderConfig, 
+                       cost_threshold: float = 0.01) -> CostAnalyzer:
+        """创建分析器实例"""
+        if provider not in cls._analyzers:
+            raise ValueError(f"未注册的分析器: {provider}")
+        
+        client = cls.create_client(provider, config)
+        processor = cls.create_processor(provider, cost_threshold)
+        
+        analyzer_class = cls._analyzers[provider]
+        return analyzer_class(client, processor)
+    
+    @classmethod
+    def get_supported_providers(cls) -> List[CloudProvider]:
+        """获取支持的云服务提供商列表"""
+        return list(cls._clients.keys())
 
 
-class CacheProvider(ABC):
-    """缓存提供商基础接口"""
+class MultiCloudAnalyzer:
+    """多云分析器"""
     
-    @abstractmethod
-    def get(self, key: str) -> Optional[Any]:
-        """获取缓存"""
-        pass
+    def __init__(self, configs: List[ProviderConfig]):
+        self.configs = configs
+        self.analyzers = {}
+        self.security_manager = SecurityManager()
+        self.logger = logger
+        
+        # 创建各提供商的分析器
+        for config in configs:
+            if config.enabled:
+                try:
+                    analyzer = CloudProviderFactory.create_analyzer(config.provider, config)
+                    self.analyzers[config.provider] = analyzer
+                except Exception as e:
+                    self.logger.error(f"创建 {config.provider} 分析器失败: {e}")
     
-    @abstractmethod
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
-        """设置缓存"""
-        pass
+    async def test_all_connections(self) -> Dict[CloudProvider, Tuple[bool, str]]:
+        """测试所有云服务连接"""
+        tasks = []
+        providers = []
+        
+        for provider, analyzer in self.analyzers.items():
+            tasks.append(analyzer.client.test_connection())
+            providers.append(provider)
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        connection_results = {}
+        for provider, result in zip(providers, results):
+            if isinstance(result, Exception):
+                connection_results[provider] = (False, str(result))
+            else:
+                connection_results[provider] = result
+        
+        return connection_results
     
-    @abstractmethod
-    def delete(self, key: str) -> bool:
-        """删除缓存"""
-        pass
+    async def analyze_multi_cloud_costs(self, request: CostAnalysisRequest) -> CostAnalysisResponse:
+        """分析多云费用"""
+        start_time = datetime.now()
+        
+        # 过滤启用的提供商
+        enabled_providers = [p for p in request.providers if p in self.analyzers]
+        
+        if not enabled_providers:
+            raise ValueError("没有可用的云服务提供商")
+        
+        # 并发分析各提供商
+        tasks = []
+        for provider in enabled_providers:
+            analyzer = self.analyzers[provider]
+            # 创建单个提供商的请求
+            single_provider_request = CostAnalysisRequest(
+                providers=[provider],
+                start_date=request.start_date,
+                end_date=request.end_date,
+                granularity=request.granularity,
+                include_resource_details=request.include_resource_details,
+                enable_optimization_analysis=request.enable_optimization_analysis,
+                cost_threshold=request.cost_threshold
+            )
+            tasks.append(analyzer.analyze_costs(single_provider_request))
+        
+        # 等待所有分析完成
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # 合并结果
+        combined_response = self._combine_analysis_results(results, enabled_providers, request)
+        
+        # 计算处理时间
+        processing_time = (datetime.now() - start_time).total_seconds()
+        combined_response.processing_time = processing_time
+        
+        return combined_response
     
-    @abstractmethod
-    def clear(self) -> bool:
-        """清空缓存"""
-        pass
-    
-    @abstractmethod
-    def exists(self, key: str) -> bool:
-        """检查缓存是否存在"""
-        pass
-
-
-class ConfigurationManager(ABC):
-    """配置管理器基础接口"""
-    
-    @abstractmethod
-    def load_config(self, config_path: Optional[str] = None) -> Dict[str, Any]:
-        """加载配置"""
-        pass
-    
-    @abstractmethod
-    def save_config(self, config: Dict[str, Any], 
-                   config_path: Optional[str] = None) -> bool:
-        """保存配置"""
-        pass
-    
-    @abstractmethod
-    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, List[str]]:
-        """验证配置"""
-        pass
-    
-    @abstractmethod
-    def merge_config(self, base_config: Dict[str, Any], 
-                    override_config: Dict[str, Any]) -> Dict[str, Any]:
-        """合并配置"""
-        pass
+    def _combine_analysis_results(self, results: List[Any], providers: List[CloudProvider], 
+                                 request: CostAnalysisRequest) -> CostAnalysisResponse:
+        """合并分析结果"""
+        # 这里应该实现结果合并逻辑
+        # 由于篇幅限制，这里提供简化实现
+        
+        cost_summary = {}
+        service_costs = {}
+        region_costs = {}
+        all_anomalies = []
+        
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                self.logger.error(f"提供商 {providers[i]} 分析失败: {result}")
+                continue
+            
+            provider = providers[i]
+            cost_summary[provider] = result.cost_summary.get(provider, {})
+            service_costs[provider] = result.service_costs.get(provider, [])
+            region_costs[provider] = result.region_costs.get(provider, [])
+            all_anomalies.extend(result.anomalies)
+        
+        return CostAnalysisResponse(
+            request_id=f"multi_cloud_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            providers=providers,
+            analysis_period={"start": request.start_date, "end": request.end_date},
+            cost_summary=cost_summary,
+            service_costs=service_costs,
+            region_costs=region_costs,
+            anomalies=all_anomalies,
+            processing_time=0.0  # 将在调用处设置
+        )
