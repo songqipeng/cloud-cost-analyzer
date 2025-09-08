@@ -55,6 +55,7 @@ Thumbs.db
 
 # 输出文件
 *.txt
+!requirements.txt  # 允许依赖文件
 *.html
 *.png
 *.jpg
