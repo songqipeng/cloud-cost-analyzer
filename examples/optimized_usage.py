@@ -3,9 +3,14 @@
 优化功能使用示例
 展示如何使用新的缓存、异步、监控、日志等功能
 """
+import sys
+import os
 import asyncio
 import json
 from datetime import datetime, timedelta
+
+# 添加src目录到Python路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from cloud_cost_analyzer.core.enhanced_async_analyzer import (
     EnhancedAsyncMultiCloudAnalyzer, 

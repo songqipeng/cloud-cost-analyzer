@@ -291,6 +291,12 @@ def retry_on_exception(max_retries: int = 3, backoff_factor: float = 1.0,
     return decorator
 
 
+# 通用云服务提供商异常
+class CloudProviderError(CloudCostAnalyzerError):
+    """云服务提供商通用异常"""
+    pass
+
+
 # 兼容性别名（保持向后兼容）
-AWSAnalyzerError = CloudCostAnalyzerError  # 向后兼容
+AWSAnalyzerError = AnalysisError  # 向后兼容
 AWSConfigError = ConfigurationError  # 向后兼容

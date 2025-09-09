@@ -159,12 +159,19 @@ class AsyncTaskManager:
     
     def get_task_statistics(self) -> Dict[str, Any]:
         """获取任务统计信息"""
+        # 兼容不同Python版本的Semaphore实现
+        max_concurrent = getattr(self.semaphore, '_initial_value', None) or \
+                        getattr(self.semaphore, '_initial', None) or \
+                        self.task_timeout  # 后备值
+        
+        available_slots = getattr(self.semaphore, '_value', None) or 0
+        
         return {
             'active_tasks': len(self.active_tasks),
             'completed_tasks': len(self.task_results),
             'failed_tasks': len(self.task_errors),
-            'max_concurrent': self.semaphore._initial_value,
-            'available_slots': self.semaphore._value
+            'max_concurrent': max_concurrent,
+            'available_slots': available_slots
         }
 
 
