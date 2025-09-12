@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统管理后台 - 中间件与监控</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f0f23;
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+        
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.3) 0%, transparent 50%);
+            z-index: -1;
+        }
+        
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(15, 15, 35, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 1rem 2rem;
+            z-index: 1000;
+        }
+        
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        
+        .logo i { color: #7c7fc6; }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+        
+        .nav-link:hover {
+            color: #fff;
+            background: rgba(124, 127, 198, 0.2);
+        }
+        
+        .admin-badge {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .main-content {
+            padding-top: 100px;
+            min-height: 100vh;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+        
+        .page-header {
+            text-align: center;
+            padding: 4rem 2rem 2rem;
+        }
+        
+        .page-title {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #7c7fc6, #ff77c6, #78dbff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+        }
+        
+        .page-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 2rem;
+        }
+        
+        .alert-banner {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.2), rgba(153, 27, 27, 0.1));
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            margin-bottom: 3rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .service-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .service-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(124, 127, 198, 0.3);
+            box-shadow: 0 8px 32px rgba(124, 127, 198, 0.2);
+        }
+        
+        .service-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .service-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+        
+        .grafana-icon { background: linear-gradient(135deg, #ff9500, #ff6600); }
+        .prometheus-icon { background: linear-gradient(135deg, #e6522c, #d4441c); }
+        .clickhouse-icon { background: linear-gradient(135deg, #ffdd4a, #ffcc00); color: #000; }
+        .postgres-icon { background: linear-gradient(135deg, #336791, #2d5a8a); }
+        .redis-icon { background: linear-gradient(135deg, #dc382d, #b52e23); }
+        .elasticsearch-icon { background: linear-gradient(135deg, #005571, #00a9ce); }
+        .rabbitmq-icon { background: linear-gradient(135deg, #ff6600, #ff4500); }
+        
+        .service-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        
+        .service-url {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Monaco', 'Consolas', monospace;
+        }
+        
+        .service-description {
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        
+        .service-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #7c7fc6;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .service-actions {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-left: auto;
+        }
+        
+        .status-running {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+        
+        .status-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+        
+        .monitoring-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 3rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(124, 127, 198, 0.3);
+        }
+        
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #7c7fc6;
+            margin-bottom: 0.5rem;
+        }
+        
+        .metric-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+        
+        .logs-section {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+        }
+        
+        .log-time {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .log-level-info { color: #60a5fa; }
+        .log-level-warn { color: #f59e0b; }
+        .log-level-error { color: #ef4444; }
+        
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .main-content { padding-left: 1rem; padding-right: 1rem; }
+            .services-grid { grid-template-columns: 1fr; }
+            .service-stats { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+    
+    <nav class="navbar">
+        <div class="nav-content">
+            <div class="logo">
+                <i class="fas fa-server"></i>
+                <span>系统管理后台</span>
+            </div>
+            <div class="nav-links">
+                <a href="/app.html" class="nav-link">
+                    <i class="fas fa-arrow-left"></i> 返回主应用
+                </a>
+                <div class="admin-badge">
+                    <i class="fas fa-shield-alt"></i> 系统管理员
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">中间件与监控管理</h1>
+            <p class="page-subtitle">管理和监控云成本分析平台的核心基础设施组件</p>
+        </div>
+
+        <!-- 系统警告 -->
+        <div class="alert-banner">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <strong>系统管理区域</strong><br>
+                此界面用于管理中间件、数据库、监控系统等基础设施组件，仅供系统管理员使用
+            </div>
+        </div>
+
+        <!-- 中间件服务管理 -->
+        <div class="services-grid">
+            <!-- Grafana 监控可视化 -->
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon grafana-icon">
+                        <i class="fas fa-chart-area"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="service-title">Grafana 监控面板</div>
+                        <div class="service-url">http://localhost:3001</div>
+                    </div>
+                    <div class="status-indicator status-running">
+                        <i class="fas fa-circle"></i> 运行中
+                    </div>
+                </div>
+                <div class="service-description">
+                    数据可视化和监控仪表板系统，用于实时展示系统性能指标、业务指标和告警信息。提供丰富的图表库和自定义仪表板功能。
+                </div>
+                <div class="service-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">15</div>
+                        <div class="stat-label">仪表板</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">67</div>
+                        <div class="stat-label">图表</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">12</div>
+                        <div class="stat-label">告警规则</div>
+                    </div>
+                </div>
+                <div class="service-actions">
+                    <a href="http://localhost:3001" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-external-link-alt"></i> 打开 Grafana
+                    </a>
+                    <button class="btn btn-secondary" onclick="restartService('grafana')">
+                        <i class="fas fa-redo"></i> 重启
+                    </button>
+                </div>
+            </div>
+
+            <!-- Prometheus 指标收集 -->
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon prometheus-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="service-title">Prometheus 监控</div>
+                        <div class="service-url">http://localhost:9090</div>
+                    </div>
+                    <div class="status-indicator status-running">
+                        <i class="fas fa-circle"></i> 运行中
+                    </div>
+                </div>
+                <div class="service-description">
+                    时序数据库和监控系统，负责从各个服务收集指标数据，提供强大的查询语言PromQL进行数据分析和告警规则配置。
+                </div>
+                <div class="service-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">234K</div>
+                        <div class="stat-label">数据点</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">28</div>
+                        <div class="stat-label">监控目标</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">8</div>
+                        <div class="stat-label">活跃告警</div>
+                    </div>
+                </div>
+                <div class="service-actions">
+                    <a href="http://localhost:9090" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-external-link-alt"></i> 打开 Prometheus
+                    </a>
+                    <button class="btn btn-secondary" onclick="restartService('prometheus')">
+                        <i class="fas fa-redo"></i> 重启
+                    </button>
+                </div>
+            </div>
+
+            <!-- ClickHouse 分析数据库 -->
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon clickhouse-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="service-title">ClickHouse 数据库</div>
+                        <div class="service-url">http://localhost:8123</div>
+                    </div>
+                    <div class="status-indicator status-running">
+                        <i class="fas fa-circle"></i> 运行中
+                    </div>
+                </div>
+                <div class="service-description">
+                    列式存储数据库，专为OLAP场景优化。用于存储和快速查询大量的云成本时序数据，支持复杂的聚合查询和实时分析。
+                </div>
+                <div class="service-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">3.2M</div>
+                        <div class="stat-label">记录数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">28GB</div>
+                        <div class="stat-label">存储大小</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">156ms</div>
+                        <div class="stat-label">平均查询</div>
+                    </div>
+                </div>
+                <div class="service-actions">
+                    <a href="http://localhost:8123/play" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-terminal"></i> 查询界面
+                    </a>
+                    <button class="btn btn-secondary" onclick="restartService('clickhouse')">
+                        <i class="fas fa-redo"></i> 重启
+                    </button>
+                </div>
+            </div>
+
+            <!-- PostgreSQL 主数据库 -->
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon postgres-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="service-title">PostgreSQL 数据库</div>
+                        <div class="service-url">localhost:5432</div>
+                    </div>
+                    <div class="status-indicator status-running">
+                        <i class="fas fa-circle"></i> 健康
+                    </div>
+                </div>
+                <div class="service-description">
+                    主关系型数据库，存储用户数据、云账号配置、权限管理、系统设置等结构化数据。提供ACID事务支持和复杂查询能力。
+                </div>
+                <div class="service-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">67K</div>
+                        <div class="stat-label">记录数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">18</div>
+                        <div class="stat-label">数据表</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">1.2GB</div>
+                        <div class="stat-label">数据库大小</div>
+                    </div>
+                </div>
+                <div class="service-actions">
+                    <button class="btn btn-primary" onclick="showDatabaseInfo()">
+                        <i class="fas fa-info-circle"></i> 数据库信息
+                    </button>
+                    <button class="btn btn-secondary" onclick="restartService('postgres')">
+                        <i class="fas fa-redo"></i> 重启
+                    </button>
+                </div>
+            </div>
+
+            <!-- Redis 缓存系统 -->
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon redis-icon">
+                        <i class="fas fa-memory"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="service-title">Redis 缓存</div>
+                        <div class="service-url">localhost:6379</div>
+                    </div>
+                    <div class="status-indicator status-running">
+                        <i class="fas fa-circle"></i> 健康
+                    </div>
+                </div>
+                <div class="service-description">
+                    内存数据库，用于缓存频繁访问的数据、用户会话存储、任务队列管理等。显著提升应用程序响应速度。
+                </div>
+                <div class="service-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">2.4K</div>
+                        <div class="stat-label">键值对</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">92%</div>
+                        <div class="stat-label">命中率</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">256MB</div>
+                        <div class="stat-label">内存使用</div>
+                    </div>
+                </div>
+                <div class="service-actions">
+                    <button class="btn btn-primary" onclick="showRedisInfo()">
+                        <i class="fas fa-info-circle"></i> 缓存统计
+                    </button>
+                    <button class="btn btn-secondary" onclick="restartService('redis')">
+                        <i class="fas fa-redo"></i> 重启
+                    </button>
+                </div>
+            </div>
+
+            <!-- Elasticsearch 搜索引擎 -->
+            <div class="service-card">
+                <div class="service-header">
+                    <div class="service-icon elasticsearch-icon">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="service-title">Elasticsearch</div>
+                        <div class="service-url">http://localhost:9200</div>
+                    </div>
+                    <div class="status-indicator status-running">
+                        <i class="fas fa-circle"></i> 健康
+                    </div>
+                </div>
+                <div class="service-description">
+                    分布式搜索和分析引擎，用于全文搜索、日志分析、实时数据聚合等场景。提供强大的查询DSL和分析能力。
+                </div>
+                <div class="service-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">890K</div>
+                        <div class="stat-label">文档数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">12</div>
+                        <div class="stat-label">索引数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">4.5GB</div>
+                        <div class="stat-label">索引大小</div>
+                    </div>
+                </div>
+                <div class="service-actions">
+                    <a href="http://localhost:9200/_cluster/health?pretty" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-heartbeat"></i> 集群状态
+                    </a>
+                    <button class="btn btn-secondary" onclick="restartService('elasticsearch')">
+                        <i class="fas fa-redo"></i> 重启
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统监控指标 -->
+        <div class="monitoring-section">
+            <h2 class="section-title">
+                <i class="fas fa-chart-bar"></i>
+                实时系统指标
+            </h2>
+            
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value" id="cpu-usage">45%</div>
+                    <div class="metric-label">CPU 使用率</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="memory-usage">2.1GB</div>
+                    <div class="metric-label">内存使用</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="disk-usage">68%</div>
+                    <div class="metric-label">磁盘使用率</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="network-io">125MB/s</div>
+                    <div class="metric-label">网络吞吐</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="api-requests">1,456</div>
+                    <div class="metric-label">API 请求/分钟</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="error-rate">0.12%</div>
+                    <div class="metric-label">错误率</div>
+                </div>
+            </div>
+            
+            <!-- 系统日志 -->
+            <h3 class="section-title" style="font-size: 1.2rem; margin-top: 2rem;">
+                <i class="fas fa-file-alt"></i>
+                系统日志 (最近50行)
+            </h3>
+            <div class="logs-section" id="system-logs">
+                <div class="log-entry">
+                    <span class="log-time">2025-09-10 15:45:23</span> 
+                    <span class="log-level-info">[INFO]</span> Grafana dashboard updated successfully
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">2025-09-10 15:45:18</span> 
+                    <span class="log-level-info">[INFO]</span> Prometheus scraping targets: 28/28 healthy
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">2025-09-10 15:45:15</span> 
+                    <span class="log-level-info">[INFO]</span> ClickHouse query completed in 89ms
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">2025-09-10 15:45:12</span> 
+                    <span class="log-level-info">[INFO]</span> PostgreSQL connection pool: 85% utilization
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">2025-09-10 15:45:08</span> 
+                    <span class="log-level-warn">[WARN]</span> Redis memory usage approaching 80% threshold
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">2025-09-10 15:45:05</span> 
+                    <span class="log-level-info">[INFO]</span> Elasticsearch cluster status: GREEN
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">2025-09-10 15:45:01</span> 
+                    <span class="log-level-info">[INFO]</span> System backup completed successfully
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟实时数据更新
+        function updateMetrics() {
+            const metrics = {
+                'cpu-usage': Math.floor(40 + Math.random() * 30) + '%',
+                'memory-usage': (2.0 + Math.random() * 1.5).toFixed(1) + 'GB',
+                'disk-usage': Math.floor(65 + Math.random() * 10) + '%',
+                'network-io': Math.floor(100 + Math.random() * 50) + 'MB/s',
+                'api-requests': Math.floor(1200 + Math.random() * 500).toLocaleString(),
+                'error-rate': (Math.random() * 0.3).toFixed(2) + '%'
+            };
+            
+            Object.entries(metrics).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = value;
+            });
+        }
+        
+        // 每10秒更新一次指标
+        setInterval(updateMetrics, 10000);
+        
+        // 中间件管理函数
+        function restartService(serviceName) {
+            if (confirm(`确定要重启 ${serviceName} 服务吗？这可能会影响系统功能。`)) {
+                showNotification(`正在重启 ${serviceName} 服务...`, 'info');
+                // 这里应该调用Docker Compose重启API
+                setTimeout(() => {
+                    showNotification(`${serviceName} 服务重启成功`, 'success');
+                }, 3000);
+            }
+        }
+        
+        function showDatabaseInfo() {
+            const info = `数据库连接信息：
+• 主机: localhost:5432
+• 数据库: cloud_cost_analyzer_enterprise  
+• 用户: postgres
+• 编码: UTF8
+• 版本: PostgreSQL 15.x
+• 连接池: 20个连接
+• 备份策略: 每日自动备份`;
+            
+            alert(info);
+        }
+        
+        function showRedisInfo() {
+            const info = `Redis 缓存统计：
+• 主机: localhost:6379
+• 内存使用: 256MB / 512MB
+• 键值对数量: 2,456
+• 命中率: 92.3%
+• 持久化: AOF + RDB
+• 集群模式: 单机`;
+            
+            alert(info);
+        }
+        
+        // 通知函数
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 100px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 12px;
+                color: white;
+                font-weight: 500;
+                z-index: 10000;
+                max-width: 400px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+                backdrop-filter: blur(10px);
+                ${type === 'success' ? 'background: linear-gradient(135deg, #22c55e, #16a34a);' : 
+                  type === 'info' ? 'background: linear-gradient(135deg, #3b82f6, #2563eb);' :
+                  'background: linear-gradient(135deg, #ef4444, #dc2626);'}
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+        
+        // 页面加载完成后显示提示
+        document.addEventListener('DOMContentLoaded', function() {
+            showNotification('系统管理后台已就绪', 'info');
+        });
+    </script>
+</body>
+</html>
